@@ -1,0 +1,17 @@
+# CODEOWNERS — кто аппрувит изменения командного воркспейса.
+# Развёртывание под личным аккаунтом andrei-shtanakov (нет GitHub Teams) → все владельцы = он.
+# ⚠ Когда появится второй ревьюер / GitHub-организация: верни двух владельцев на манифест и
+#    команду (@team/...) на catch-all — иначе branch protection «require code owner review»
+#    не satisfiable в одиночку (нельзя аппрувить свой же PR).
+
+# Набор репо и пины меняются только с ревью — это контракт «что = наш воркспейс».
+/workspace-manifest.toml     @andrei-shtanakov
+
+# Политики онбординга/CI — тоже под ревью.
+/bootstrap.sh                @andrei-shtanakov
+/.github/                    @andrei-shtanakov
+/ci/                         @andrei-shtanakov
+/CODEOWNERS                  @andrei-shtanakov
+
+# Всё остальное в зонтике.
+*                            @andrei-shtanakov

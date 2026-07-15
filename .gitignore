@@ -1,0 +1,24 @@
+# ── umbrella ai-orchestrators-workspace (★ ЕСТЬ shared remote) ──────────
+# Обёртка трекает ТОЛЬКО свой контент. Подпроекты — независимые клоны
+# (bootstrap.sh по workspace-manifest.toml), здесь НЕ трекаются.
+# Перенос трюка из all_ai_orchestrators/.gitignore:6-11.
+
+# 1) игнорим всё на верхнем уровне …
+/*
+
+# 2) … и пускаем обратно только своё
+!/.gitignore
+!/.github/
+!/ci/
+!/docs/
+!/README.md
+!/CONTRIBUTING.md
+!/CODEOWNERS
+!/workspace-manifest.toml
+!/bootstrap.sh
+
+# 3) мусор — на случай если правило выше его затянет
+.DS_Store
+*.swp
+*.kate-swp
+__pycache__/

@@ -1,0 +1,27 @@
+name: manifest-drift
+# Гейт на изменение набора/пинов. Гоняется на ВСЕХ PR — намеренно: если сделать этот чек
+# обязательным в branch protection, а триггерить только на paths=[manifest], то PR без правки
+# манифеста навис бы в pending навсегда (обязательный чек, который для него не запускается).
+# Чек manifest-only и дешёвый (~1 сек), на не-манифест PR просто зелёный — ложных падений нет.
+# Manifest-only режим: репо на диске НЕ нужны — check-release-drift деградирует до info
+# для отсутствующих .git, но проверяет схему, воспроизводимость и tag↔lock согласованность.
+# Поэтому CI самодостаточен: используем ВЕНДОРЕННУЮ копию чекера в ci/ (без клона devtools).
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: release-drift (manifest-only, strict)
+        run: |
+          python ci/check-release-drift.py \
+            --workspace . \
+            --manifest workspace-manifest.toml \
+            --strict

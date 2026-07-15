@@ -1,0 +1,208 @@
+# workspace-manifest.toml — SSOT командного набора репо + пинов (schema v0.3)
+#
+# Дом: командный зонтик ai-orchestrators-workspace (НЕ devtools).
+# Стартовая база: devtools/release-manifest.toml (snapshot 2026-07-12) + секция [tools].
+# READ-ONLY по репо. Изменение = PR в зонтик (CODEOWNERS-аппрув).
+#
+# Отличие от release-manifest.toml:
+#   * добавлена секция [tools.*] — devtools (установщик+чекеры) и ecosystem-kb
+#     (дом координации). Без них команда не восстановит рабочий воркспейс.
+#   * это ЕДИНСТВЕННЫЙ манифест набора; devtools-тулы читают его по --manifest.
+#
+# checkout_policy (как bootstrap.sh/repos.sh install выбирают ref):
+#   sha если задан → иначе tag (если != "-") → иначе дефолтная ветка.
+#   --head игнорирует пины и берёт дефолтную ветку (для активной разработки).
+
+schema_version   = "0.3.0"
+generated        = "2026-07-15"
+ecosystem_release = "unreleased"
+
+# ══════════════ ЯДРА (publish=pypi) ══════════════
+
+[cores.spec-runner]
+package_name   = "spec-runner"
+repo_url       = "git@github.com:andrei-shtanakov/spec-runner.git"
+git_dir        = "spec-runner"
+pyproject_path = "spec-runner/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "v2.9.0"
+install        = "pypi"
+lock_version   = "2.9.0"
+pin_range      = ">=2.9,<3"
+publish        = "pypi"
+rust           = false
+
+[cores.atp-platform-sdk]                 # workspace-member ВНУТРИ atp-platform
+package_name   = "atp-platform-sdk"
+member         = true                    # общий git_dir с atp-platform → НЕ клонится отдельно
+repo_url       = "git@github.com:andrei-shtanakov/atp-platform.git"
+git_dir        = "atp-platform"
+pyproject_path = "atp-platform/packages/atp-sdk/pyproject.toml"
+tag_pattern    = "atp-sdk-v*"
+tag            = "atp-sdk-v2.0.0"
+install        = "pypi"
+lock_version   = "2.0.0"
+pin_range      = ">=2.0,<3"
+publish        = "pypi"
+rust           = false
+
+[cores.atp-platform]                     # umbrella-дистрибутив (тот же git_dir — не клонится дважды)
+package_name   = "atp-platform"
+repo_url       = "git@github.com:andrei-shtanakov/atp-platform.git"
+git_dir        = "atp-platform"
+pyproject_path = "atp-platform/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "v2.1.0"
+install        = "pypi"
+lock_version   = "2.1.0"
+pin_range      = ">=2.1,<3"
+publish        = "pypi"
+rust           = false
+
+# ══════════════ ПРИЛОЖЕНИЯ (install=git-sha/tag) ══════════════
+
+[apps.Maestro]
+package_name   = "maestro"
+repo_url       = "git@github.com:andrei-shtanakov/Maestro.git"
+git_dir        = "Maestro"
+pyproject_path = "Maestro/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "v0.2.0"
+sha            = "e4f0a9fa2884"
+install        = "git-tag"
+lock_version   = "0.2.0"
+publish        = "none"
+rust           = false
+
+[apps.arbiter]
+package_name   = "arbiter"
+repo_url       = "git@github.com:andrei-shtanakov/arbiter.git"
+git_dir        = "arbiter"
+pyproject_path = "arbiter/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "532dade39dac"
+install        = "git-sha"
+lock_version   = "0.1.0+g532dade39dac"
+publish        = "none"
+rust           = true
+
+[apps.dispatcher]
+package_name   = "dispatcher"
+repo_url       = "git@github.com:andrei-shtanakov/dispatcher.git"
+git_dir        = "dispatcher"
+pyproject_path = "dispatcher/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "927e1aa9af9c"
+install        = "git-sha"
+lock_version   = "0.1.0+g927e1aa9af9c"
+publish        = "none"
+rust           = false
+
+[apps.steward]
+package_name   = "steward"
+repo_url       = "git@github.com:andrei-shtanakov/steward.git"
+git_dir        = "steward"
+pyproject_path = "steward/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "v0.1.0"                         # аннотированный тег на master
+sha            = "0d5b3f6f5c0e"                  # = коммит тега v0.1.0 (провенанс)
+install        = "git-tag"
+lock_version   = "0.1.0"
+publish        = "none"
+rust           = false
+
+[apps.proctor]
+package_name   = "proctor"
+repo_url       = "git@github.com:andrei-shtanakov/proctor.git"
+git_dir        = "proctor"
+pyproject_path = "proctor/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "f52f92bf0dac"
+install        = "git-sha"
+lock_version   = "0.1.0+gf52f92bf0dac"
+publish        = "none"
+rust           = false
+
+[apps.deployer]
+package_name   = "deployer"
+repo_url       = "git@github.com:andrei-shtanakov/deployer.git"
+git_dir        = "deployer"
+pyproject_path = "deployer/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "b693768a7942"
+install        = "git-sha"
+lock_version   = "0.1.0+gb693768a7942"
+publish        = "none"
+rust           = false
+
+[apps.prograph]
+package_name   = "prograph"
+repo_url       = "git@github.com:andrei-shtanakov/prograph.git"
+git_dir        = "prograph"
+pyproject_path = "prograph/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "12b023c57805"
+install        = "git-sha"
+lock_version   = "0.1.0+g12b023c57805"
+publish        = "none"
+rust           = true
+
+[apps.robin-runtime]
+package_name   = "robin-runtime"
+repo_url       = "git@github.com:andrei-shtanakov/robin-runtime.git"
+git_dir        = "robin-runtime"
+pyproject_path = "robin-runtime/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "f1c5069f87a0"
+install        = "git-sha"
+lock_version   = "0.0.1+gf1c5069f87a0"
+publish        = "none"
+rust           = false
+
+[apps.github-checker]
+package_name   = "github-checker"
+repo_url       = "git@github.com:andrei-shtanakov/github-checker.git"
+git_dir        = "github-checker"
+pyproject_path = "github-checker/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "f0edf6d6b54a"
+install        = "git-sha"
+lock_version   = "0.1.0+gf0edf6d6b54a"
+publish        = "none"
+rust           = false
+
+# ══════════════ TOOLS (тулинг + KB; нужны для восстановления воркспейса) ══════════════
+# repo_url подтверждены фактом (git remote get-url origin, 2026-07-15).
+# ⚠ check-release-drift.py читает только [cores]/[apps] — [tools] CI НЕ валидирует;
+#   пины здесь поддерживаются вручную (bootstrap.sh их честно исполняет).
+
+[tools.devtools]
+package_name   = "devtools"
+repo_url       = "git@github.com:andrei-shtanakov/devtools.git"
+git_dir        = "devtools"
+pyproject_path = "devtools/pyproject.toml"    # если нет pyproject — чекер деградирует до info
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "c336dea"                     # pinned 2026-07-15
+install        = "git-sha"
+publish        = "none"
+rust           = false
+
+[tools.ecosystem-kb]                           # = prograph-vault, дом командной координации
+package_name   = "ecosystem-kb"
+repo_url       = "git@github.com:andrei-shtanakov/prograph-vault.git"
+git_dir        = "prograph-vault"
+pyproject_path = "prograph-vault/pyproject.toml"   # KB без pyproject → чекер даст info, это ок
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "178ec33"                     # pinned 2026-07-15
+install        = "git-sha"
+publish        = "none"
+rust           = false
