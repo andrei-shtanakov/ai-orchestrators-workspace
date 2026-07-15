@@ -20,7 +20,7 @@
   * обработка ошибок git/subprocess (нет git / не repo / таймаут) → info, не краш.
 
 Использование:
-    ./check-release-drift.py --workspace .. --manifest ../ai-orchestrators-workspace/workspace-manifest.toml
+    ./check-release-drift.py --workspace . --manifest workspace-manifest.toml   # вендор в зонтике: манифест в корне
     ./check-release-drift.py --workspace .. --json      # для dispatcher (стабильный контракт)
     ./check-release-drift.py --workspace .. --strict     # warn тоже валит gate
 """
@@ -165,13 +165,11 @@ def check_component(cid: str, meta: dict, ws: Path) -> list[dict]:
 
 
 def main() -> int:
-    # Дефолт манифеста якорим от расположения скрипта (devtools/), а не от cwd —
-    # голый вызов не должен зависеть от текущего каталога. Зонтик — сосед devtools.
-    default_manifest = (
-        Path(__file__).resolve().parent.parent
-        / "ai-orchestrators-workspace"
-        / "workspace-manifest.toml"
-    )
+    # ВЕНДОРЕННАЯ КОПИЯ (зонтик): дефолт адаптирован под layout зонтика — манифест
+    # лежит в КОРНЕ репо (ci/ на уровень ниже). В оригинале (devtools/) дефолт иной —
+    # это единственная дивергенция от devtools master, см. ci/README.md.
+    # CI зонтика всё равно передаёт --manifest явно; дефолт — для голого запуска.
+    default_manifest = Path(__file__).resolve().parent.parent / "workspace-manifest.toml"
     ap = argparse.ArgumentParser()
     ap.add_argument("--workspace", default="..")
     ap.add_argument("--manifest", default=str(default_manifest))
