@@ -1,0 +1,61 @@
+name: governance-gate
+# gov:allow-cowork-file — this workflow names the token in comments (meta-tooling).
+# Reusable governance gate (ADR-ECO-004 D5). One canonical enforcer, called by each
+# subproject via a thin vendored caller (see ci/governance/vendor/governance.yml) pinned
+# to a SHA/tag of THIS repo. The umbrella meta-enforcer verifies each caller's pin.
+#
+# Runs in the CALLER's checkout, then checks out this repo (umbrella) for the scripts.
+# Gates: GOV-003 no _cowork_output in runtime code; GOV-009/I2 authority-root guard.
+# (GAP-7 manifest-resolve is umbrella-only — see manifest-drift.yml, not here.)
+
+on:
+  workflow_call:
+    inputs:
+      umbrella-ref:
+        description: "SHA/tag of ai-orchestrators-workspace to source scripts from (PIN THIS)."
+        type: string
+        default: main
+      strict:
+        type: boolean
+        default: true
+      runtime-scan:
+        description: "GOV-003 — no _cowork_output in runtime code."
+        type: boolean
+        default: true
+      authority-guard:
+        description: "GOV-009/I2 — flag authority-root path changes (advisory unless strict)."
+        type: boolean
+        default: false          # opt-in: only repos holding authority-root paths need it
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout caller repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # authority-guard needs the base ref for the diff
+      - name: checkout governance scripts (umbrella)
+        uses: actions/checkout@v4
+        with:
+          repository: andrei-shtanakov/ai-orchestrators-workspace
+          ref: ${{ inputs.umbrella-ref }}
+          path: .governance
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: GOV-003 — no _cowork_output in runtime
+        if: ${{ inputs.runtime-scan }}
+        run: python .governance/ci/governance/no_cowork_in_runtime.py --repo .
+
+      - name: GOV-009 / I2 — authority-root guard
+        if: ${{ inputs.authority-guard && github.event_name == 'pull_request' }}
+        env:
+          BASE_REF: ${{ github.base_ref }}   # via env, never inlined into the shell (injection-safe)
+          STRICT: ${{ inputs.strict }}
+        run: |
+          args=()
+          [ "$STRICT" = "true" ] && args+=(--strict)
+          python .governance/ci/governance/authority_root_guard.py \
+            --repo . --base "origin/$BASE_REF" "${args[@]}"
