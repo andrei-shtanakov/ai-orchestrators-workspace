@@ -1,0 +1,23 @@
+# VENDORED CALLER — copy this to each subproject's `.github/workflows/governance.yml`.
+# ADR-ECO-004 D5: the pin below (@<sha>) IS the vendored copy; the umbrella meta-enforcer
+# verifies every repo references the canonical pin.
+#
+# Rollout per repo:
+#   1. cp this file to .github/workflows/governance.yml
+#   2. replace BOTH <PIN> with a SHA or tag of ai-orchestrators-workspace (never a branch)
+#   3. set authority-guard: true ONLY in repos holding authority-root paths
+#      (ai-orchestrators-workspace, prograph-vault)
+#   4. add "governance / gate" to the repo's branch ruleset as a required check (D4)
+name: governance
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  governance:
+    uses: andrei-shtanakov/ai-orchestrators-workspace/.github/workflows/governance-gate.yml@<PIN>
+    with:
+      umbrella-ref: "<PIN>"      # same SHA/tag as the uses: pin above
+      strict: true
+      runtime-scan: true
+      authority-guard: false     # -> true only in umbrella / prograph-vault

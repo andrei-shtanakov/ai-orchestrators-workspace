@@ -25,3 +25,9 @@ jobs:
             --workspace . \
             --manifest workspace-manifest.toml \
             --strict
+      - name: manifest name/alias resolve (GAP-7 / GOV-004, strict)
+        run: |
+          python ci/check_manifest_resolve.py \
+            --workspace . \
+            --manifest workspace-manifest.toml \
+            --strict
