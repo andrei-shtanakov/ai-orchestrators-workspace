@@ -12,9 +12,9 @@ on:
   workflow_call:
     inputs:
       umbrella-ref:
-        description: "SHA/tag of ai-orchestrators-workspace to source scripts from (PIN THIS)."
+        description: "SHA/tag of ai-orchestrators-workspace to source scripts from (PIN THIS; required so scripts can't drift to moving main)."
         type: string
-        default: main
+        required: true
       strict:
         type: boolean
         default: true

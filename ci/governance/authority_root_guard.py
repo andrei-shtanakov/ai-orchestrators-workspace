@@ -31,17 +31,21 @@ DEFAULT_GLOBS = [
 ]
 
 
-def changed_files(repo: Path, base: str) -> list[str]:
-    """Files changed vs `base` (three-dot: merge-base..HEAD). Empty on failure."""
+def changed_files(repo: Path, base: str) -> list[str] | None:
+    """Files changed vs `base` (three-dot: merge-base..HEAD).
+
+    Returns None (NOT []) when git itself fails — the caller must fail closed
+    rather than report a clean guard it never actually evaluated.
+    """
     try:
         r = subprocess.run(
             ["git", "-C", str(repo), "diff", "--name-only", f"{base}...HEAD"],
             capture_output=True, text=True, timeout=15,
         )
     except (OSError, subprocess.SubprocessError):
-        return []
+        return None
     if r.returncode != 0:
-        return []
+        return None
     return [ln for ln in r.stdout.splitlines() if ln.strip()]
 
 
@@ -63,6 +67,12 @@ def main() -> int:
 
     globs = args.glob if args.glob else DEFAULT_GLOBS
     changed = changed_files(args.repo, args.base)
+    if changed is None:
+        # fail CLOSED: could not evaluate the guard, so do not report it clean.
+        sev = "error" if args.strict else "notice"
+        print(f"[{sev}] GOV-009: could not compute diff vs {args.base!r} "
+              f"(git failed) — cannot verify authority-root; failing closed under --strict.")
+        return 1 if args.strict else 0
     hits = [p for p in changed if matches(p, globs)]
 
     if not hits:

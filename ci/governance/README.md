@@ -53,5 +53,5 @@ canonical pin — so a stale or missing gate is itself a drift finding. Not wire
 ```sh
 python ci/check_manifest_resolve.py --workspace .. --strict          # full disk check
 python ci/governance/no_cowork_in_runtime.py --repo ../<some-repo>
-python ci/governance/authority_root_guard.py --repo . --base main --strict
+python ci/governance/authority_root_guard.py --repo . --base origin/main --strict
 ```

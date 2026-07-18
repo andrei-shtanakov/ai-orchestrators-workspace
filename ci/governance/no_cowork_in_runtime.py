@@ -14,6 +14,7 @@ Reusable: гоняется per-repo из governance-gate.yml (`--repo .`). Stdli
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -39,23 +40,24 @@ def _opted_out(text: str) -> bool:
 def scan(repo: Path) -> tuple[list[tuple[Path, int, str]], list[Path]]:
     hits: list[tuple[Path, int, str]] = []
     skipped: list[Path] = []
-    for path in repo.rglob("*"):
-        if path.is_dir():
-            continue
-        if any(part in SKIP_DIRS for part in path.relative_to(repo).parts):
-            continue
-        if path.suffix.lower() not in CODE_EXT:
-            continue
-        try:
-            text = path.read_text(encoding="utf-8")
-        except (OSError, UnicodeDecodeError):
-            continue
-        if _opted_out(text):
-            skipped.append(path.relative_to(repo))
-            continue
-        for lineno, line in enumerate(text.splitlines(), 1):
-            if NEEDLE in line:
-                hits.append((path.relative_to(repo), lineno, line.strip()))
+    # os.walk with in-place dir pruning — never descends into .git/node_modules/etc.
+    for root, dirs, files in os.walk(repo):
+        dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
+        for name in files:
+            path = Path(root) / name
+            if path.suffix.lower() not in CODE_EXT:
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            rel = path.relative_to(repo)
+            if _opted_out(text):
+                skipped.append(rel)
+                continue
+            for lineno, line in enumerate(text.splitlines(), 1):
+                if NEEDLE in line:
+                    hits.append((rel, lineno, line.strip()))
     return hits, skipped
 
 
