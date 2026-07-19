@@ -1,6 +1,8 @@
-# VENDORED CALLER — copy this to each subproject's `.github/workflows/governance.yml`.
-# ADR-ECO-004 D5: the tag pin below IS the vendored copy; the umbrella meta-enforcer
-# verifies every repo references the canonical pin.
+# CANONICAL CALLER — copy this to each subproject's `.github/workflows/governance.yml`.
+# ADR-ECO-004 D5. This is a THIN CALLER: it holds a pinned reference to the reusable gate
+# workflow at ai-orchestrators-workspace/.github/workflows/governance-gate.yml (the checks it
+# runs live under ci/governance/). No code is copied into consumers; the immutable @governance-v1
+# tag is the pin, and the umbrella meta-enforcer verifies every repo references the canonical pin.
 #
 # Rollout per repo:
 #   1. cp this file to .github/workflows/governance.yml
