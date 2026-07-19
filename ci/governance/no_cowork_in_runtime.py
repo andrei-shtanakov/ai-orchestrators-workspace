@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
 from fnmatch import fnmatch
 from pathlib import Path
@@ -46,6 +47,9 @@ COMMENT_MARK = {
 # НАЗЫВАТЬ токен (сам этот чекер). Не waiver инварианта, а директива сканеру.
 OPTOUT = "gov:allow-cowork-file"
 INLINE_ALLOW = "gov:allow-cowork"  # на конкретной строке — точечный escape hatch
+# `//`-комментарий, но НЕ схема URL (`://`) — иначе https:// глотал бы остаток строки
+# и прятал реальный резолв после него (false negative).
+_SLASH_COMMENT = re.compile(r"(?<!:)//")
 
 
 def _opted_out(text: str) -> bool:
@@ -58,9 +62,17 @@ def _is_test_file(name: str) -> bool:
 
 def _code_part(line: str, ext: str) -> str:
     """Line minus its trailing comment (per-language marker) — lets a documented
-    mention in a comment pass while a path literal in code still fails."""
+    mention in a comment pass while a path literal in code still fails.
+
+    For `//` languages a scheme `://` is NOT a comment, so a URL never truncates
+    the line and hides a real `_cowork_output` after it."""
     mark = COMMENT_MARK.get(ext)
-    return line.split(mark, 1)[0] if mark else line
+    if mark is None:
+        return line
+    if mark == "//":
+        m = _SLASH_COMMENT.search(line)
+        return line[: m.start()] if m else line
+    return line.split(mark, 1)[0]
 
 
 def scan(repo: Path) -> tuple[list[tuple[Path, int, str]], list[Path], int]:
@@ -107,7 +119,8 @@ def main() -> int:
         print(f"[error] {rel}:{lineno}: runtime code references {NEEDLE!r}: {snippet[:100]}")
     if hits:
         print(f"\nGOV-003 FAILED: {len(hits)} runtime reference(s) to {NEEDLE!r} "
-              f"(hard invariant, no waiver). Legit mention? add `{INLINE_ALLOW}` on the line.")
+              f"(hard invariant on path resolution). If a line is a documented mention, "
+              f"not a resolve, mark it with `{INLINE_ALLOW}`.")
         return 1
     print(f"GOV-003 OK: no runtime references to {NEEDLE!r} "
           f"({len(skipped)} opted-out file(s), {ignored} comment/allow mention(s) ignored).")
