@@ -26,10 +26,16 @@ Not in this batch (ADR sequencing): GAP-5 tool-pins, GAP-6 cowork-dup, `human_me
   no duplicate `git_dir`; and — when siblings are on disk — the on-disk `origin` matches
   `repo_url`. Manifest-only in CI (degrades to info for absent repos), full disk check in a
   workspace run. Same exit/severity contract as `check-release-drift.py`.
-- **`no_cowork_in_runtime.py` (GOV-003).** Hard invariant, no waiver: shipped/runtime code
-  never references `_cowork_output`. Scans code extensions only (prose may mention it).
-  Meta-tooling that must name the token carries `gov:allow-cowork-file` in its header; every
-  opt-out is printed (no silent bypass).
+- **`no_cowork_in_runtime.py` (GOV-003).** Hard invariant on *path resolution*: shipped/runtime
+  code never *resolves* `_cowork_output` paths. A real resolve is always blocking; only
+  **documented mentions** are exempt (they aren't resolves), and each exemption is explicit and
+  greppable, not a silent waiver. Scans code extensions only; ignores **tests** (they create the
+  dir to test its exclusion), single-line **comments** (per-language `#`/`//`, with `://` URLs
+  not mistaken for comments), and any line carrying the inline `gov:allow-cowork` marker.
+  Whole meta-tooling files opt out with `gov:allow-cowork-file` in the header; docstring /
+  block-comment mentions (beyond the single-line heuristic) use the inline marker. File-level
+  opt-outs are printed by name; comment/test/inline-marked mentions are reported as a count.
+  **Not for KB/docs repos** (e.g. prograph-vault): run them with `runtime-scan: false`.
 - **`authority_root_guard.py` (GOV-009 / I2).** Flags PRs touching authority-defining paths
   (`governance.yaml`, rulesets, required-check defs, `ci/governance/**`, `CODEOWNERS`) — they
   must land via `human_merge`, never `agent_merge`. Advisory by default; `--strict` blocks.

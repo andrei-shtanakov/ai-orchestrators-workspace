@@ -3,11 +3,14 @@
 """no_cowork_in_runtime.py — GOV-003 no-cowork-output-in-runtime gate.
 
 Инвариант (ADR-ECO-004, CLAUDE.md §1.4): shipped/runtime-код НИКОГДА не резолвит пути
-под `_cowork_output/`. Дев-тулинг внутри самого `_cowork_output/devtools/` — исключение,
-но он и так лежит под исключаемым каталогом. Документация (`.md`, CLAUDE.md) вправе
-упоминать `_cowork_output` — сканируем только КОД, не прозу.
+под `_cowork_output/`. Сканируем только КОД (не прозу), и только реальный РЕЗОЛВ пути:
+- проза (`.md`/`.rst`/`.txt`) не сканируется;
+- ТЕСТЫ исключены — они создают `_cowork_output/`, чтобы проверить его пропуск;
+- упоминание ТОЛЬКО в комментарии (по маркеру языка) не считается резолвом;
+- meta-тулинг с `gov:allow-cowork-file` в шапке пропускается целиком;
+- точечный escape hatch на строке — `gov:allow-cowork`.
 
-exception: none (hard invariant) — любое совпадение валит гейт (exit 1).
+exception: none (hard invariant) — реальный резолв в коде валит гейт (exit 1).
 
 Reusable: гоняется per-repo из governance-gate.yml (`--repo .`). Stdlib-only.
 """
@@ -15,7 +18,9 @@ from __future__ import annotations
 
 import argparse
 import os
+import re
 import sys
+from fnmatch import fnmatch
 from pathlib import Path
 
 # «Runtime/shipped» расширения кода. Проза (.md/.rst/.txt) намеренно НЕ сканируется.
@@ -23,29 +28,64 @@ CODE_EXT = {
     ".py", ".rs", ".ts", ".tsx", ".js", ".jsx", ".go", ".rb",
     ".toml", ".yaml", ".yml", ".json", ".sh", ".bash",
 }
-# Каталоги, где ссылка на _cowork_output легитимна или нерелевантна.
+# Каталоги, куда НЕ спускаемся: инфраструктура + ТЕСТЫ. Тесты создают `_cowork_output/`,
+# чтобы проверить, что runtime его пропускает — это не shipped/runtime-код.
 SKIP_DIRS = {".git", "_cowork_output", "node_modules", ".venv", "venv",
-             "dist", "build", "target", "__pycache__", ".mypy_cache"}
+             "dist", "build", "target", "__pycache__", ".mypy_cache",
+             "tests", "test", "__tests__", "testdata"}
+# Тест-файлы по имени (лежат не под tests/, но всё равно тесты).
+TEST_GLOBS = ("test_*", "*_test.*", "conftest.py", "*.test.*", "*.spec.*")
 NEEDLE = "_cowork_output"
+# Маркер комментария по расширению: совпадение ТОЛЬКО в комментарии — не резолв пути
+# (документация инварианта в коде допустима). .json — без комментариев.
+COMMENT_MARK = {
+    ".py": "#", ".toml": "#", ".yaml": "#", ".yml": "#", ".sh": "#", ".bash": "#",
+    ".rb": "#", ".rs": "//", ".ts": "//", ".tsx": "//", ".js": "//", ".jsx": "//",
+    ".go": "//",
+}
 # Файл с этим маркером в первых строках — governance/meta-тулинг, который вправе
-# НАЗЫВАТЬ токен (сам этот чекер). Это не waiver инварианта (runtime всё равно не
-# резолвит cowork), а директива сканеру. Пропуски печатаются — тихого обхода нет.
+# НАЗЫВАТЬ токен (сам этот чекер). Не waiver инварианта, а директива сканеру.
 OPTOUT = "gov:allow-cowork-file"
+INLINE_ALLOW = "gov:allow-cowork"  # на конкретной строке — точечный escape hatch
+# `//`-комментарий, но НЕ схема URL (`://`) — иначе https:// глотал бы остаток строки
+# и прятал реальный резолв после него (false negative).
+_SLASH_COMMENT = re.compile(r"(?<!:)//")
 
 
 def _opted_out(text: str) -> bool:
     return OPTOUT in "\n".join(text.splitlines()[:6])
 
 
-def scan(repo: Path) -> tuple[list[tuple[Path, int, str]], list[Path]]:
+def _is_test_file(name: str) -> bool:
+    return any(fnmatch(name, g) for g in TEST_GLOBS)
+
+
+def _code_part(line: str, ext: str) -> str:
+    """Line minus its trailing comment (per-language marker) — lets a documented
+    mention in a comment pass while a path literal in code still fails.
+
+    For `//` languages a scheme `://` is NOT a comment, so a URL never truncates
+    the line and hides a real `_cowork_output` after it."""
+    mark = COMMENT_MARK.get(ext)
+    if mark is None:
+        return line
+    if mark == "//":
+        m = _SLASH_COMMENT.search(line)
+        return line[: m.start()] if m else line
+    return line.split(mark, 1)[0]
+
+
+def scan(repo: Path) -> tuple[list[tuple[Path, int, str]], list[Path], int]:
     hits: list[tuple[Path, int, str]] = []
     skipped: list[Path] = []
-    # os.walk with in-place dir pruning — never descends into .git/node_modules/etc.
+    ignored = 0  # comment-only / inline-allowed mentions
+    # os.walk with in-place dir pruning — never descends into .git/tests/etc.
     for root, dirs, files in os.walk(repo):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS]
         for name in files:
             path = Path(root) / name
-            if path.suffix.lower() not in CODE_EXT:
+            ext = path.suffix.lower()
+            if ext not in CODE_EXT or _is_test_file(name):
                 continue
             try:
                 text = path.read_text(encoding="utf-8")
@@ -56,9 +96,13 @@ def scan(repo: Path) -> tuple[list[tuple[Path, int, str]], list[Path]]:
                 skipped.append(rel)
                 continue
             for lineno, line in enumerate(text.splitlines(), 1):
-                if NEEDLE in line:
-                    hits.append((rel, lineno, line.strip()))
-    return hits, skipped
+                if NEEDLE not in line:
+                    continue
+                if INLINE_ALLOW in line or NEEDLE not in _code_part(line, ext):
+                    ignored += 1
+                    continue
+                hits.append((rel, lineno, line.strip()))
+    return hits, skipped, ignored
 
 
 def main() -> int:
@@ -68,17 +112,18 @@ def main() -> int:
                     help="accepted for interface symmetry; this gate is always blocking")
     args = ap.parse_args()
 
-    hits, skipped = scan(args.repo)
+    hits, skipped, ignored = scan(args.repo)
     for rel in skipped:
         print(f"[skip ] {rel}: {OPTOUT} (governance/meta-tooling)")
     for rel, lineno, snippet in hits:
         print(f"[error] {rel}:{lineno}: runtime code references {NEEDLE!r}: {snippet[:100]}")
     if hits:
         print(f"\nGOV-003 FAILED: {len(hits)} runtime reference(s) to {NEEDLE!r} "
-              f"(hard invariant, no waiver).")
+              f"(hard invariant on path resolution). If a line is a documented mention, "
+              f"not a resolve, mark it with `{INLINE_ALLOW}`.")
         return 1
     print(f"GOV-003 OK: no runtime references to {NEEDLE!r} "
-          f"({len(skipped)} meta-tooling file(s) opted out).")
+          f"({len(skipped)} opted-out file(s), {ignored} comment/allow mention(s) ignored).")
     return 0
 
 
