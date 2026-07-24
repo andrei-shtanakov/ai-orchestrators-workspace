@@ -191,6 +191,19 @@ lock_version   = "0.1.0+g0c580d2f1928"
 publish        = "none"
 rust           = false
 
+[apps.research-bench]                    # Stage A pilot: research-домен поверх Maestro/spec-runner
+package_name   = "research-bench"
+repo_url       = "git@github.com:andrei-shtanakov/research-bench.git"
+git_dir        = "research-bench"
+pyproject_path = "research-bench/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "594cc4ee2b9e"                # Stage A vertical slice, PR #1
+install        = "git-sha"
+lock_version   = "0.1.0+g594cc4ee2b9e"
+publish        = "none"
+rust           = false
+
 # ══════════════ TOOLS (тулинг + KB; нужны для восстановления воркспейса) ══════════════
 # repo_url подтверждены фактом (git remote get-url origin, 2026-07-15).
 # ⚠ check-release-drift.py читает только [cores]/[apps] — [tools] CI НЕ валидирует;
