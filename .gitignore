@@ -16,9 +16,13 @@
 !/CODEOWNERS
 !/workspace-manifest.toml
 !/bootstrap.sh
+!/pyproject.toml
+!/uv.lock
 
 # 3) мусор — на случай если правило выше его затянет
 .DS_Store
 *.swp
 *.kate-swp
 __pycache__/
+
+.venv/

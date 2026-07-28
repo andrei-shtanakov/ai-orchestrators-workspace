@@ -1,24 +1,35 @@
 #!/usr/bin/env python3
 """plan_fields_sensor.py — Phase 0a fleet plan-fields sensor (warnings-only).
 
-Home: ai-orchestrators-workspace, ``ci/``. This is the umbrella-owned wrapper that
-ADR-ECO-005 (sequencing Phase 0a) asks for: read ``workspace-manifest.toml`` (the SSOT
-of the repo set + pins), **freeze every repo's SHA before analysis**, run the vendored
-plan-fields checker over the frozen roots, and emit a machine-readable snapshot plus a
-human report.
+Home: ai-orchestrators-workspace, ``ci/``. The umbrella-owned wrapper ADR-ECO-005
+(sequencing Phase 0a) asks for: read ``workspace-manifest.toml`` (the SSOT of the
+repo set + pins), **freeze every repo's SHA before analysis**, resolve the fleet
+plan-fields graph over the frozen roots, and emit a machine-readable snapshot plus
+a human report.
 
-It is deliberately *more* than the raw ``check-plan-fields.py`` (which discovers
-siblings via ``iterdir`` + origin parsing, with no manifest, no SHA freeze, no JSON):
-the manifest read, the frozen-SHA provenance, and the JSON snapshot are the new
-Phase-0a functionality.
+The analysis no longer shells out to a vendored copy of the devtools checker and
+re-parses its text. It calls the shared **``plan-fields``** package directly (PF-7):
+one implementation of the contract, structured diagnostics with stable codes.
 
-Phase 0a scope (hard): **warnings-only.** No GitHub issue mutation, no ``first_seen``
-persistence, no error escalation on a second snapshot — all Phase 0b. The exit code is
-therefore always 0: the sensor reports, it does not gate.
+  * ``parse_fleet`` / ``check_fleet`` — the CANONICAL graph over ``@id``'d items,
+    with cross-repo ``todo://`` edges resolved and ``PF-BLOCKER-STALE`` on the
+    resolved graph (the only stable-identity, host-independent failure class).
+  * ``check_legacy_fleet`` — the TRANSITIONAL legacy ``<repo>#<slug>`` graph over
+    the un-``@id``'d items the fleet still lives on (pre-PF-2B); every finding is a
+    warning marked ``[legacy source: no @id]``.
 
-Vendored checker provenance: ``ci/check-plan-fields.py`` is a byte-for-byte copy of
-``devtools/check-plan-fields.py`` at the manifest-pinned devtools SHA
-(``tools.devtools``), mirroring the other vendored checkers here.
+The manifest read, the frozen-SHA provenance, and the JSON snapshot are the
+umbrella's own Phase-0a functionality; parsing/resolution/graph diagnostics are
+the package's. Inputs are FROZEN before analysis — the sensor never lets the
+package discover siblings; it hands the package exactly the pinned roots.
+
+Phase 0a scope (hard): **warnings-only.** No GitHub issue mutation, no
+``first_seen`` persistence, no error escalation on a second snapshot — all Phase 0b.
+The exit code is therefore always 0: the sensor reports, it does not gate.
+
+Runtime: the ``plan-fields`` package needs Python 3.12 and is a pinned dependency,
+so this script runs under ``uv`` (see the sensor workflow / ``pyproject.toml``). The
+other ``ci/`` scripts stay stdlib and are unaffected.
 """
 
 from __future__ import annotations
@@ -33,11 +44,25 @@ from pathlib import Path
 
 try:
     import tomllib
-except ModuleNotFoundError:  # py<3.11 fallback
+except ModuleNotFoundError:  # pragma: no cover - py<3.11 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
-COLLECTOR_VERSION = "plan-fields-sensor/0.1.0"
-SNAPSHOT_SCHEMA = 1
+from plan_fields import (
+    RepoInput,
+    check_fleet,
+    check_legacy_fleet,
+    parse_fleet,
+)
+from plan_fields import __version__ as PLAN_FIELDS_VERSION
+
+COLLECTOR_VERSION = "plan-fields-sensor/0.2.0"
+SNAPSHOT_SCHEMA = 2
+
+# sensor severity policy — a thin projection of the package's stable codes. A
+# canonical stale (stable @id identity) is the only "error" class; everything else,
+# and every legacy finding, is a warning. Phase 0a never gates on any of it.
+_CANONICAL_ERROR = {"PF-BLOCKER-STALE"}
+_COVERAGE_CODES = {"PF-ID-MISSING", "PF-OWNER-MISSING", "PF-OWNER-GRAMMAR"}
 
 
 @dataclass
@@ -52,7 +77,7 @@ class Pin:
 class Source:
     """Per-repo provenance in the frozen snapshot."""
 
-    repo: str
+    repo: str  # canonical package_name
     git_dir: str
     pin: Pin
     present: bool
@@ -70,12 +95,12 @@ class Snapshot:
     manifest_ref: dict
     collector_version: str
     workspace_root: str
-    checker: dict
+    parser: dict
     sources: list[dict]
+    canonical_edges: int
+    canonical: list[dict]
+    legacy: list[dict]
     diagnostics: dict[str, list[str]]
-    checker_summary: str | None
-    checker_exit: int
-    raw_checker_output: str
     warnings: list[str] = field(default_factory=list)
 
 
@@ -96,10 +121,10 @@ def resolve_pin(entry: dict) -> Pin:
 
 
 def manifest_repos(manifest: dict) -> list[tuple[str, dict]]:
-    """Return (repo-id, entry) for each unique git_dir, skipping members/dupes.
+    """Return (package_name, entry) for each unique git_dir, skipping members/dupes.
 
-    Mirrors bootstrap.sh: ``member = true`` entries share a git_dir with their owner and
-    are not separate checkouts, and a git_dir seen twice is emitted once.
+    Mirrors bootstrap.sh: ``member = true`` entries share a git_dir with their owner
+    and are not separate checkouts, and a git_dir seen twice is emitted once.
     """
     seen: set[str] = set()
     out: list[tuple[str, dict]] = []
@@ -111,8 +136,23 @@ def manifest_repos(manifest: dict) -> list[tuple[str, dict]]:
             if not git_dir or git_dir in seen:
                 continue
             seen.add(git_dir)
-            out.append((cid, entry))
+            out.append((str(entry.get("package_name") or cid), entry))
     return out
+
+
+def manifest_name_set(manifest: dict) -> set[str]:
+    """Every canonical repo name the manifest declares — the fleet AUTHORITY set.
+
+    Includes members (they are real packages), so a reference to one is never
+    mis-flagged as naming a repo outside the fleet.
+    """
+    names: set[str] = set()
+    for section in ("cores", "apps", "tools"):
+        for _cid, entry in (manifest.get(section) or {}).items():
+            name = entry.get("package_name")
+            if isinstance(name, str):
+                names.add(name.lower())
+    return names
 
 
 def git_head(repo_dir: Path) -> str | None:
@@ -129,13 +169,11 @@ def git_head(repo_dir: Path) -> str | None:
     return proc.stdout.strip()
 
 
-def freeze_sources(
-    manifest: dict, workspace: Path
-) -> tuple[list[Source], list[str]]:
+def freeze_sources(manifest: dict, workspace: Path) -> tuple[list[Source], list[str]]:
     """Freeze each repo's HEAD SHA before analysis; collect provenance + warnings."""
     sources: list[Source] = []
     warnings: list[str] = []
-    for repo_id, entry in manifest_repos(manifest):
+    for name, entry in manifest_repos(manifest):
         git_dir = str(entry.get("git_dir"))
         pin = resolve_pin(entry)
         repo_dir = workspace / git_dir
@@ -144,10 +182,10 @@ def freeze_sources(
         present = (repo_dir / ".git").exists()
         resolved = git_head(repo_dir) if present else None
         if not present:
-            warnings.append(f"{repo_id}: not checked out under {workspace} — skipped")
+            warnings.append(f"{name}: not checked out under {workspace} — skipped")
         elif resolved is None:
             warnings.append(
-                f"{repo_id}: .git present but HEAD unresolved "
+                f"{name}: .git present but HEAD unresolved "
                 f"(partial/broken clone) — skipped"
             )
         pin_drift = (
@@ -157,12 +195,12 @@ def freeze_sources(
         )
         if pin_drift:
             warnings.append(
-                f"{repo_id}: checkout HEAD {resolved[:12]} != manifest sha pin "
+                f"{name}: checkout HEAD {resolved[:12]} != manifest sha pin "
                 f"{pin.value} (drift between pin and frozen root)"
             )
         sources.append(
             Source(
-                repo=repo_id,
+                repo=name,
                 git_dir=git_dir,
                 pin=pin,
                 present=present,
@@ -173,33 +211,83 @@ def freeze_sources(
     return sources, warnings
 
 
-def run_checker(checker: Path, workspace: Path) -> tuple[int, str]:
-    """Run the vendored plan-fields checker over the frozen root; capture output."""
-    proc = subprocess.run(
-        [sys.executable, str(checker), "--root", str(workspace)],
-        capture_output=True,
-        text=True,
-    )
-    return proc.returncode, proc.stdout + proc.stderr
+def build_inputs(sources: list[Source], workspace: Path) -> list[RepoInput]:
+    """One frozen RepoInput per source — the pinned roots handed to the package.
+
+    The disk read stays here (the sensor's job); ``parse_fleet`` does no discovery.
+    A present source contributes its ``TODO.md`` text (or ``None`` when it keeps
+    none) and its frozen HEAD as the pinned commit; an absent one is
+    ``available=False``.
+    """
+    inputs: list[RepoInput] = []
+    for s in sources:
+        if not s.present:
+            inputs.append(RepoInput(s.repo.lower(), available=False))
+            continue
+        todo = workspace / s.git_dir / "TODO.md"
+        text = todo.read_text(encoding="utf-8", errors="ignore") if todo.is_file() else None
+        inputs.append(
+            RepoInput(s.repo.lower(), todo_text=text, commit=s.resolved_sha, available=True)
+        )
+    return inputs
 
 
-def parse_checker_output(raw: str) -> tuple[dict[str, list[str]], str | None]:
-    """Split the checker's stdout into diagnostics + the summary line."""
+def resolve_fleet(inputs: list[RepoInput], manifest_set: set[str]) -> dict:
+    """Run the package's canonical + legacy passes; return structured results."""
+    snapshot = parse_fleet(inputs, manifest_set)
+    canonical = list(snapshot["diagnostics"]) + check_fleet(snapshot)
+    exclude = {
+        (r["provenance"]["repo"], r["raw_ref"]) for r in snapshot["references"]
+    }
+    legacy = check_legacy_fleet(inputs, manifest_set, exclude=exclude)
+
     errors: list[str] = []
     warnings: list[str] = []
     notes: list[str] = []
-    summary: str | None = None
-    for line in raw.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("ERROR:"):
-            errors.append(stripped[len("ERROR:") :].strip())
-        elif stripped.startswith("WARN:"):
-            warnings.append(stripped[len("WARN:") :].strip())
-        elif stripped.startswith("plan-fields on "):
-            summary = stripped
-        elif stripped:
-            notes.append(stripped)
-    return {"errors": errors, "warnings": warnings, "notes": notes}, summary
+    canonical_out: list[dict] = []
+    for d in canonical:
+        canonical_out.append(
+            {
+                "code": d["code"],
+                "severity": d["severity"],
+                "subject_uri": d.get("subject_uri"),
+                "related_uri": d.get("related_uri"),
+                "message": d["message"],
+            }
+        )
+        if d["code"] in _COVERAGE_CODES:
+            continue  # coverage/backlog is summarised as a note, not a per-item line
+        bucket = errors if d["code"] in _CANONICAL_ERROR else warnings
+        bucket.append(f"{d['message']} [{d['code']}]")
+
+    legacy_out: list[dict] = []
+    for d in legacy:
+        legacy_out.append(
+            {
+                "code": d.code,
+                "source_repo": d.source_repo,
+                "source_line": d.source_line,
+                "target_repo": d.target_repo,
+                "slug": d.slug,
+                "message": d.message,
+                "identity_grade": d.identity_grade,
+            }
+        )
+        warnings.append(f"{d.message}  [legacy source: no @id]")
+
+    edges = snapshot["edges"]
+    missing = sum(1 for d in canonical if d["code"] == "PF-ID-MISSING")
+    if edges:
+        notes.append(f"canonical: {len(edges)} resolved cross-repo @id edge(s)")
+    if missing:
+        notes.append(f"{missing} open item(s) still without an @id (PF-2B backlog)")
+
+    return {
+        "canonical": canonical_out,
+        "legacy": legacy_out,
+        "edges": len(edges),
+        "diagnostics": {"errors": errors, "warnings": warnings, "notes": notes},
+    }
 
 
 def render_report(snap: Snapshot) -> str:
@@ -211,7 +299,9 @@ def render_report(snap: Snapshot) -> str:
         f"- manifest: schema `{snap.manifest_ref.get('schema_version')}`, "
         f"generated `{snap.manifest_ref.get('generated')}`",
         f"- collector: `{snap.collector_version}`",
-        f"- checker exit: `{snap.checker_exit}` (not a gate in Phase 0a)",
+        f"- parser: `{snap.parser['package']}` "
+        f"pinned `{snap.parser['pin'][:12]}`",
+        f"- canonical @id edges resolved: **{snap.canonical_edges}**",
         "",
         "## Frozen roots",
         "",
@@ -229,19 +319,23 @@ def render_report(snap: Snapshot) -> str:
     diag = snap.diagnostics
     lines += [
         "",
-        "## Diagnostics (from vendored checker)",
+        "## Diagnostics (from the plan-fields package)",
         "",
         f"- errors: **{len(diag['errors'])}**  ·  "
         f"warnings: **{len(diag['warnings'])}**  ·  notes: {len(diag['notes'])}",
         f"- sensor-level warnings (freeze): **{len(snap.warnings)}**",
         "",
     ]
+    for note in diag["notes"]:
+        lines.append(f"- {note}")
+    if diag["notes"]:
+        lines.append("")
     if diag["errors"]:
-        lines.append("### Checker errors")
+        lines.append("### Canonical errors (stable @id identity)")
         lines += [f"- {e}" for e in diag["errors"]]
         lines.append("")
     if diag["warnings"]:
-        lines.append("### Checker warnings")
+        lines.append("### Warnings")
         lines += [f"- {w}" for w in diag["warnings"]]
         lines.append("")
     if snap.warnings:
@@ -258,21 +352,12 @@ def render_report(snap: Snapshot) -> str:
 def build_snapshot(
     manifest: dict,
     workspace: Path,
-    checker: Path,
     generated_at: str,
 ) -> Snapshot:
-    """Assemble the full Phase-0a snapshot (freeze → run → collect)."""
+    """Assemble the full Phase-0a snapshot (freeze → resolve → collect)."""
     sources, freeze_warnings = freeze_sources(manifest, workspace)
-    exit_code, raw = run_checker(checker, workspace)
-    diagnostics, summary = parse_checker_output(raw)
-    # A non-zero checker exit with no ERROR: lines means the checker did not run
-    # cleanly (invalid root, no TODO.md repos, crash) — surface it so the summary
-    # never reads "0 errors" over a failed run.
-    if exit_code != 0 and not diagnostics["errors"]:
-        diagnostics["errors"].append(
-            f"checker exited {exit_code} without ERROR: lines — it did not run "
-            f"successfully (invalid root, no TODO.md under it, or a crash)"
-        )
+    inputs = build_inputs(sources, workspace)
+    result = resolve_fleet(inputs, manifest_name_set(manifest))
     return Snapshot(
         schema_version=SNAPSHOT_SCHEMA,
         phase="0a",
@@ -284,22 +369,33 @@ def build_snapshot(
         },
         collector_version=COLLECTOR_VERSION,
         workspace_root=str(workspace),
-        checker={
-            "path": str(checker),
-            "vendored_from": "devtools/check-plan-fields.py",
-        },
-        sources=[_source_dict(s) for s in sources],
-        diagnostics=diagnostics,
-        checker_summary=summary,
-        checker_exit=exit_code,
-        raw_checker_output=raw,
+        parser={"package": "plan-fields", "version": PLAN_FIELDS_VERSION, "pin": _pin_commit()},
+        sources=[asdict(s) for s in sources],
+        canonical_edges=result["edges"],
+        canonical=result["canonical"],
+        legacy=result["legacy"],
+        diagnostics=result["diagnostics"],
         warnings=freeze_warnings,
     )
 
 
-def _source_dict(s: Source) -> dict:
-    d = asdict(s)
-    return d
+def _pin_commit() -> str:
+    """The immutable dispatcher commit the package is pinned to (from uv.lock)."""
+    lock = Path(__file__).resolve().parent.parent / "uv.lock"
+    try:
+        data = tomllib.loads(lock.read_text(encoding="utf-8"))
+    except OSError:
+        return "unknown"
+    for pkg in data.get("package", []):
+        if pkg.get("name") == "plan-fields":
+            src = pkg.get("source", {})
+            rev = src.get("rev") or ""
+            if rev:
+                return rev
+            git = src.get("git", "")
+            if "rev=" in git:
+                return git.split("rev=", 1)[1].split("#", 1)[0]
+    return "unknown"
 
 
 def main() -> int:
@@ -310,12 +406,6 @@ def main() -> int:
         required=True,
         type=Path,
         help="root holding the frozen (pinned) repo checkouts",
-    )
-    parser.add_argument(
-        "--checker",
-        required=True,
-        type=Path,
-        help="path to the vendored check-plan-fields.py",
     )
     parser.add_argument("--out-dir", type=Path, default=Path("."))
     parser.add_argument("--json", default="plan-fields-snapshot.json")
@@ -329,7 +419,7 @@ def main() -> int:
 
     generated_at = args.generated_at or datetime.now(timezone.utc).isoformat()
     manifest = load_manifest(args.manifest)
-    snap = build_snapshot(manifest, args.workspace, args.checker, generated_at)
+    snap = build_snapshot(manifest, args.workspace, generated_at)
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     (args.out_dir / args.json).write_text(
@@ -341,8 +431,9 @@ def main() -> int:
     present = sum(1 for s in snap.sources if s["present"])
     print(
         f"plan-fields sensor (Phase 0a): {present}/{len(snap.sources)} repos frozen, "
-        f"{len(snap.diagnostics['warnings'])} checker warning(s), "
-        f"{len(snap.diagnostics['errors'])} checker error(s), "
+        f"{snap.canonical_edges} canonical edge(s), "
+        f"{len(snap.diagnostics['warnings'])} warning(s), "
+        f"{len(snap.diagnostics['errors'])} error(s), "
         f"{len(snap.warnings)} freeze warning(s). Artifacts in {args.out_dir}/."
     )
     # Phase 0a is warnings-only: always exit 0 (no gating until Phase 0b).
