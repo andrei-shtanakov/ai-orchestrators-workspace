@@ -139,10 +139,17 @@ def freeze_sources(
         git_dir = str(entry.get("git_dir"))
         pin = resolve_pin(entry)
         repo_dir = workspace / git_dir
-        present = repo_dir.is_dir()
+        # "present" means a git checkout exists — a leftover/partial-clone directory
+        # without .git is NOT a frozen root and must not inflate the count.
+        present = (repo_dir / ".git").exists()
         resolved = git_head(repo_dir) if present else None
-        if not present or resolved is None:
+        if not present:
             warnings.append(f"{repo_id}: not checked out under {workspace} — skipped")
+        elif resolved is None:
+            warnings.append(
+                f"{repo_id}: .git present but HEAD unresolved "
+                f"(partial/broken clone) — skipped"
+            )
         pin_drift = (
             pin.kind == "sha"
             and resolved is not None
@@ -258,6 +265,14 @@ def build_snapshot(
     sources, freeze_warnings = freeze_sources(manifest, workspace)
     exit_code, raw = run_checker(checker, workspace)
     diagnostics, summary = parse_checker_output(raw)
+    # A non-zero checker exit with no ERROR: lines means the checker did not run
+    # cleanly (invalid root, no TODO.md repos, crash) — surface it so the summary
+    # never reads "0 errors" over a failed run.
+    if exit_code != 0 and not diagnostics["errors"]:
+        diagnostics["errors"].append(
+            f"checker exited {exit_code} without ERROR: lines — it did not run "
+            f"successfully (invalid root, no TODO.md under it, or a crash)"
+        )
     return Snapshot(
         schema_version=SNAPSHOT_SCHEMA,
         phase="0a",
