@@ -1,0 +1,69 @@
+name: plan-fields-sensor
+# Phase 0a of ADR-ECO-005 (ecosystem-kb / prograph-vault decisions): a nightly fleet
+# plan-fields sensor. It freezes each repo's SHA per workspace-manifest.toml, runs the
+# vendored plan-fields checker over the frozen roots, and uploads a JSON snapshot + a
+# Markdown report.
+#
+# WARNINGS-ONLY (hard). This workflow does NOT gate, does NOT open/close/reopen GitHub
+# issues, and does NOT persist first_seen. Diagnostic-issue lifecycle and second-snapshot
+# escalation are Phase 0b — see the ADR (D7/D8) and the landing handoff.
+#
+# Unlike manifest-drift.yml (manifest-only, no repos on disk), this sensor needs the fleet
+# ON DISK: it clones the pinned set via bootstrap.sh. That requires READ access to the
+# private repos. Provide a token in the `WORKSPACE_FLEET_TOKEN` secret (a fine-grained PAT
+# or classic token with read scope on the fleet). Without it, clones fail gracefully, the
+# repos show up as "not checked out" warnings, and the run stays green.
+
+on:
+  schedule:
+    - cron: "0 3 * * *"   # nightly 03:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sensor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout umbrella
+        uses: actions/checkout@v4
+        with:
+          path: umbrella
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clone pinned fleet at frozen refs (best-effort)
+        # bootstrap.sh clones each manifest repo as a sibling of the umbrella (i.e. into
+        # $GITHUB_WORKSPACE) and checks out its pin (sha -> tag -> default branch).
+        continue-on-error: true
+        env:
+          FLEET_TOKEN: ${{ secrets.WORKSPACE_FLEET_TOKEN }}
+        run: |
+          if [ -n "${FLEET_TOKEN}" ]; then
+            git config --global \
+              url."https://x-access-token:${FLEET_TOKEN}@github.com/".insteadOf \
+              "git@github.com:"
+          else
+            echo "::warning::WORKSPACE_FLEET_TOKEN not set — fleet clones will be skipped;"
+            echo "::warning::the snapshot will list every repo as 'not checked out'."
+          fi
+          bash umbrella/bootstrap.sh || true
+
+      - name: Run plan-fields sensor (warnings-only)
+        run: |
+          python umbrella/ci/plan_fields_sensor.py \
+            --manifest umbrella/workspace-manifest.toml \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --checker umbrella/ci/check-plan-fields.py \
+            --out-dir artifacts \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+      - name: Upload snapshot + report
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-fields-snapshot
+          path: artifacts/
+          if-no-files-found: error
