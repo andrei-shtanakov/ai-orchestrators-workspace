@@ -177,11 +177,13 @@ def freeze_sources(manifest: dict, workspace: Path) -> tuple[list[Source], list[
         git_dir = str(entry.get("git_dir"))
         pin = resolve_pin(entry)
         repo_dir = workspace / git_dir
-        # "present" means a git checkout exists — a leftover/partial-clone directory
-        # without .git is NOT a frozen root and must not inflate the count.
-        present = (repo_dir / ".git").exists()
-        resolved = git_head(repo_dir) if present else None
-        if not present:
+        # A repo is a frozen root only when its HEAD actually resolves: a missing
+        # .git, or a partial/broken clone whose HEAD cannot be read, is NOT frozen
+        # and must not inflate the count or reach analysis with a null commit.
+        has_git = (repo_dir / ".git").exists()
+        resolved = git_head(repo_dir) if has_git else None
+        present = resolved is not None
+        if not has_git:
             warnings.append(f"{name}: not checked out under {workspace} — skipped")
         elif resolved is None:
             warnings.append(

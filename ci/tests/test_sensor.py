@@ -14,6 +14,7 @@ from plan_fields_sensor import (
     Pin,
     Source,
     build_inputs,
+    freeze_sources,
     manifest_name_set,
     manifest_repos,
     resolve_fleet,
@@ -78,3 +79,19 @@ def test_build_inputs_freezes_todo_and_head(tmp_path: Path) -> None:
     assert by["maestro"].todo_text == "- [ ] x @owner:o @id:x\n"
     assert by["maestro"].commit == "abc123" and by["maestro"].available
     assert by["ghost"].available is False and by["ghost"].todo_text is None
+
+
+def test_broken_clone_is_not_frozen_and_never_available_without_a_commit(
+    tmp_path: Path,
+) -> None:
+    # a .git that is not a real repo -> HEAD unresolvable -> not present/frozen,
+    # and build_inputs must never mark it available with a null commit.
+    repo = tmp_path / "maestro"
+    (repo / ".git").mkdir(parents=True)  # a directory, not a valid git repo
+    (repo / "TODO.md").write_text("- [ ] x @owner:o @id:x\n", encoding="utf-8")
+    manifest = {"apps": {"maestro": {"package_name": "maestro", "git_dir": "maestro"}}}
+    sources, warnings = freeze_sources(manifest, tmp_path)
+    assert sources[0].present is False and sources[0].resolved_sha is None
+    assert any("HEAD unresolved" in w for w in warnings)
+    inp = build_inputs(sources, tmp_path)[0]
+    assert inp.available is False and inp.commit is None
