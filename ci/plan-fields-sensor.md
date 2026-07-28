@@ -9,9 +9,20 @@ single repo is locally green while the fleet view disagrees.
 1. Reads `workspace-manifest.toml` (SSOT of the repo set + pins).
 2. **Freezes** each repo's HEAD SHA before analysis, recording the manifest pin and the
    resolved SHA (and flagging pin↔checkout drift).
-3. Runs the **vendored** plan-fields checker over the frozen roots.
-4. Emits `plan-fields-snapshot.json` (machine-readable, with per-repo provenance) and
+3. Resolves the plan-fields graph over the frozen roots with the shared **`plan-fields`**
+   package (`parse_fleet`/`check_fleet` canonical + `check_legacy_fleet` transitional).
+4. Emits `plan-fields-snapshot.json` (machine-readable, with per-repo provenance,
+   structured canonical + legacy diagnostics, and the resolved `@id` edge count) and
    `plan-fields-report.md` (human).
+
+**Frozen set == analysed set.** The sensor analyses **exactly** the manifest fleet it
+freezes — one `RepoInput` per manifest checkout, handed to the package (which does no
+discovery of its own). A repo on disk but **not in the manifest** (e.g.
+`spec-runner-vscode`) is out of scope by design. This differs from the previous sensor,
+which shelled the old checker with `--root <workspace>` and let it `iterdir`-discover
+*all* on-disk repos — analysing a superset of what it froze. It also differs from the
+local `devtools` `make plan-check`, which is intentionally all-on-disk for developer
+convenience.
 
 ## Phase 0a scope (hard boundary)
 
@@ -19,28 +30,28 @@ single repo is locally green while the fleet view disagrees.
 escalation on a second snapshot. Exit code is always 0 — the sensor reports, it does not
 gate. Diagnostic-issue lifecycle and escalation are **Phase 0b** (ADR D7/D8).
 
-## Vendored checker
+## Shared parser (no more vendored checker)
 
-`ci/check-plan-fields.py` is a **byte-for-byte copy** of `devtools/check-plan-fields.py`
-at the manifest-pinned devtools SHA (`tools.devtools`, `bde8cbe2aa04` as of 2026-07-15),
-mirroring how `check-release-drift.py` / `check_manifest_resolve.py` are vendored here. To
-refresh: re-copy from the devtools pin and bump this note. Do not edit the vendored copy in
-place. A JSON output flag (`--format json`) on the upstream checker is a separate devtools
-change (sub-handoff); until then the sensor parses the checker's stdout.
+The vendored `ci/check-plan-fields.py` copy is **gone** (PF-7). There is now one
+implementation of the contract — the `plan-fields` package — so the sensor imports it and
+gets **structured** diagnostics with stable codes instead of re-parsing a checker's text.
+The package needs **Python 3.12**, so it is a pinned dependency (`pyproject.toml` +
+`uv.lock`, an **immutable dispatcher commit** via git+subdirectory — never a workspace
+path), and the sensor runs under `uv run --frozen`. The other `ci/` scripts stay stdlib
+and are untouched. Bump the pin in its own PR.
 
 ## Run locally
 
 ```bash
 # from a workspace that already has the fleet on disk as siblings:
-python ci/plan_fields_sensor.py \
+uv run --frozen python ci/plan_fields_sensor.py \
   --manifest workspace-manifest.toml \
   --workspace .. \
-  --checker ci/check-plan-fields.py \
   --out-dir artifacts
 ```
 
 `--workspace` is the directory whose children are the repo checkouts. In CI, `bootstrap.sh`
-clones the pinned fleet there first.
+clones the pinned fleet there first. Tests: `uv run --frozen pytest`.
 
 ## CI credentials
 

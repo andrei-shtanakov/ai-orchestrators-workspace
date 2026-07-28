@@ -1,8 +1,9 @@
 name: plan-fields-sensor
 # Phase 0a of ADR-ECO-005 (ecosystem-kb / prograph-vault decisions): a nightly fleet
-# plan-fields sensor. It freezes each repo's SHA per workspace-manifest.toml, runs the
-# vendored plan-fields checker over the frozen roots, and uploads a JSON snapshot + a
-# Markdown report.
+# plan-fields sensor. It freezes each repo's SHA per workspace-manifest.toml, resolves
+# the plan-fields graph over the frozen roots with the shared `plan-fields` package
+# (pinned in pyproject.toml, run via `uv run --frozen`), and uploads a JSON snapshot +
+# a Markdown report. The vendored checker copy is gone (PF-7).
 #
 # WARNINGS-ONLY (hard). This workflow does NOT gate, does NOT open/close/reopen GitHub
 # issues, and does NOT persist first_seen. Diagnostic-issue lifecycle and second-snapshot
@@ -35,6 +36,12 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Sync the pinned plan-fields package
+        working-directory: umbrella
+        run: uv sync --frozen
+
       - name: Clone pinned fleet at frozen refs (best-effort)
         # bootstrap.sh clones each manifest repo as a sibling of the umbrella (i.e. into
         # $GITHUB_WORKSPACE) and checks out its pin (sha -> tag -> default branch).
@@ -53,12 +60,12 @@ jobs:
           bash umbrella/bootstrap.sh || true
 
       - name: Run plan-fields sensor (warnings-only)
+        working-directory: umbrella
         run: |
-          python umbrella/ci/plan_fields_sensor.py \
-            --manifest umbrella/workspace-manifest.toml \
+          uv run --frozen python ci/plan_fields_sensor.py \
+            --manifest workspace-manifest.toml \
             --workspace "${GITHUB_WORKSPACE}" \
-            --checker umbrella/ci/check-plan-fields.py \
-            --out-dir artifacts \
+            --out-dir "${GITHUB_WORKSPACE}/artifacts" \
             --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
       - name: Upload snapshot + report
