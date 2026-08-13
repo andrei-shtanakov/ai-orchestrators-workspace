@@ -204,6 +204,45 @@ lock_version   = "0.1.0+g594cc4ee2b9e"
 publish        = "none"
 rust           = false
 
+[apps.impresario]                        # airun product-governance (добавлено 2026-08-13)
+package_name   = "impresario"
+repo_url       = "git@github.com:andrei-shtanakov/impresario.git"
+git_dir        = "impresario"
+pyproject_path = "impresario/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "f84d5ac5a2ae"                # origin/master 2026-08-13
+install        = "git-sha"
+lock_version   = "0.1.0+gf84d5ac5a2ae"
+publish        = "none"
+rust           = false
+
+[apps.discovery]                         # добавлено 2026-08-13
+package_name   = "discovery"
+repo_url       = "git@github.com:andrei-shtanakov/discovery.git"
+git_dir        = "discovery"
+pyproject_path = "discovery/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "1e8b80da7a15"                # origin/master 2026-08-13
+install        = "git-sha"
+lock_version   = "0.1.0+g1e8b80da7a15"
+publish        = "none"
+rust           = false
+
+[apps.discovery-toolkit]                 # добавлено 2026-08-13
+package_name   = "discovery-toolkit"
+repo_url       = "git@github.com:andrei-shtanakov/discovery-toolkit.git"
+git_dir        = "discovery-toolkit"
+pyproject_path = "discovery-toolkit/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "b5788256a631"                # origin/master 2026-08-13
+install        = "git-sha"
+lock_version   = "0.2.0+gb5788256a631"
+publish        = "none"
+rust           = false
+
 # ══════════════ TOOLS (тулинг + KB; нужны для восстановления воркспейса) ══════════════
 # repo_url подтверждены фактом (git remote get-url origin, 2026-07-15).
 # ⚠ check-release-drift.py читает только [cores]/[apps] — [tools] CI НЕ валидирует;
@@ -229,6 +268,30 @@ pyproject_path = "prograph-vault/pyproject.toml"   # KB без pyproject → ч�
 tag_pattern    = "v*"
 tag            = "-"
 sha            = "178ec33"                     # pinned 2026-07-15
+install        = "git-sha"
+publish        = "none"
+rust           = false
+
+[tools.robin-toolkit]                          # шаблоны/спека Robin, без pyproject (добавлено 2026-08-13)
+package_name   = "robin-toolkit"
+repo_url       = "git@github.com:andrei-shtanakov/robin-toolkit.git"
+git_dir        = "robin-toolkit"
+pyproject_path = "robin-toolkit/pyproject.toml"    # pyproject нет — потому и в [tools]: release-drift эту секцию не читает; валидирует только manifest-resolve
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "3e871628abe0"                # origin/master 2026-08-13
+install        = "git-sha"
+publish        = "none"
+rust           = false
+
+[tools.spec-runner-vscode]                     # VS Code extension (TypeScript, без pyproject; добавлено 2026-08-13)
+package_name   = "spec-runner-vscode"
+repo_url       = "git@github.com:andrei-shtanakov/spec-runner-vscode.git"
+git_dir        = "spec-runner-vscode"
+pyproject_path = "spec-runner-vscode/pyproject.toml"   # TS-репо без pyproject — потому и в [tools]: release-drift эту секцию не читает; валидирует только manifest-resolve
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "ec2f4b6c220d"                # origin/master 2026-08-13
 install        = "git-sha"
 publish        = "none"
 rust           = false
