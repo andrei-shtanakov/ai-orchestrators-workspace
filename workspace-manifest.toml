@@ -14,7 +14,7 @@
 #   --head игнорирует пины и берёт дефолтную ветку (для активной разработки).
 
 schema_version   = "0.3.0"
-generated        = "2026-07-16"
+generated        = "2026-08-16"
 ecosystem_release = "unreleased"
 
 # ══════════════ ЯДРА (publish=pypi) ══════════════
