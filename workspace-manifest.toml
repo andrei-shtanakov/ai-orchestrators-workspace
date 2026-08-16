@@ -14,7 +14,7 @@
 #   --head игнорирует пины и берёт дефолтную ветку (для активной разработки).
 
 schema_version   = "0.3.0"
-generated        = "2026-07-16"
+generated        = "2026-08-16"
 ecosystem_release = "unreleased"
 
 # ══════════════ ЯДРА (publish=pypi) ══════════════
@@ -25,9 +25,9 @@ repo_url       = "git@github.com:andrei-shtanakov/spec-runner.git"
 git_dir        = "spec-runner"
 pyproject_path = "spec-runner/pyproject.toml"
 tag_pattern    = "v*"
-tag            = "v2.9.0"
+tag            = "v2.33.2"                       # bump 2026-08-16 (был v2.9.0)
 install        = "pypi"
-lock_version   = "2.9.0"
+lock_version   = "2.33.2"
 pin_range      = ">=2.9,<3"
 publish        = "pypi"
 rust           = false
@@ -94,9 +94,9 @@ git_dir        = "dispatcher"
 pyproject_path = "dispatcher/pyproject.toml"
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "927e1aa9af9c"
+sha            = "ed204fd2070c"                # bump 2026-08-16: origin/master (пин отставал на 577 коммитов)
 install        = "git-sha"
-lock_version   = "0.1.0+g927e1aa9af9c"
+lock_version   = "0.1.0+ged204fd2070c"
 publish        = "none"
 rust           = false
 
@@ -255,7 +255,7 @@ git_dir        = "devtools"
 pyproject_path = "devtools/pyproject.toml"    # если нет pyproject — чекер деградирует до info
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "bde8cbe2aa04"                # bump 2026-07-15: master после мержа devtools#9 (release-manifest MOVED)
+sha            = "59357804d898"                # bump 2026-08-16: origin/master (был bde8cbe2aa04 от 2026-07-15)
 install        = "git-sha"
 publish        = "none"
 rust           = false
