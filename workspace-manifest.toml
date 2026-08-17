@@ -14,7 +14,7 @@
 #   --head игнорирует пины и берёт дефолтную ветку (для активной разработки).
 
 schema_version   = "0.3.0"
-generated        = "2026-08-16"
+generated        = "2026-08-17"
 ecosystem_release = "unreleased"
 
 # ══════════════ ЯДРА (publish=pypi) ══════════════
@@ -243,6 +243,19 @@ lock_version   = "0.2.0+gb5788256a631"
 publish        = "none"
 rust           = false
 
+[apps.disputatio]                        # battle-stage №2 контура; переехал под зонтик (добавлено 2026-08-17)
+package_name   = "disputatio"
+repo_url       = "git@github.com:andrei-shtanakov/disputatio.git"
+git_dir        = "disputatio"
+pyproject_path = "disputatio/pyproject.toml"
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "65df013fe63c"                # origin/master 2026-08-17
+install        = "git-sha"
+lock_version   = "0.1.0+g65df013fe63c"
+publish        = "none"
+rust           = false
+
 # ══════════════ TOOLS (тулинг + KB; нужны для восстановления воркспейса) ══════════════
 # repo_url подтверждены фактом (git remote get-url origin, 2026-07-15).
 # ⚠ check-release-drift.py читает только [cores]/[apps] — [tools] CI НЕ валидирует;
@@ -292,6 +305,18 @@ pyproject_path = "spec-runner-vscode/pyproject.toml"   # TS-репо без pypr
 tag_pattern    = "v*"
 tag            = "-"
 sha            = "ec2f4b6c220d"                # origin/master 2026-08-13
+install        = "git-sha"
+publish        = "none"
+rust           = false
+
+[tools.kapelle]                                # Elixir/Oban-оркестратор, battle-stage №1; без pyproject — потому и в [tools] (добавлено 2026-08-17)
+package_name   = "kapelle"
+repo_url       = "git@github.com:andrei-shtanakov/kapelle.git"
+git_dir        = "kapelle"
+pyproject_path = "kapelle/pyproject.toml"      # Elixir-репо без pyproject — release-drift эту секцию не читает; валидирует только manifest-resolve
+tag_pattern    = "v*"
+tag            = "-"
+sha            = "2e147f0f8b03"                # origin/master 2026-08-17
 install        = "git-sha"
 publish        = "none"
 rust           = false
