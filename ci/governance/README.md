@@ -49,6 +49,26 @@ Not in this batch (ADR sequencing): GAP-5 tool-pins, GAP-6 cowork-dup, `human_me
   the *second* line: the broker also refuses these paths itself, but that check lives inside
   a file which is itself authority-root, so it cannot be its own witness.
 
+## Merge broker (ADR-ECO-008a)
+
+`.github/workflows/merge-broker.yml` в ЭТОМ репо — канонический исполнитель агентского
+мержа, вызываемый тонким каллером (`vendor/merge-broker.yml`). Восемь предусловий, каждое
+доказывается положительно: PR открыт и не черновик; `mergeable == MERGEABLE` (с опросом до
+определённости — `UNKNOWN` после сдвига base это неизвестность, а не разрешение); rollup
+чеков `SUCCESS` (пустой rollup = «чеков нет», не «прошли»); ноль неразрешённых review
+threads; App не аппрувил этот PR (I3); PR не трогает authority-root (I2); файлы, threads и
+reviews непагинированы — иначе полноту трёх проверок выше не доказать. Мерж — прямым
+`PUT /pulls/{n}/merge` с `sha`: `gh pr merge` читает `mergeStateStatus` на своей стороне и
+при `BLOCKED` отказывает, не дойдя до эндпоинта, где проверяется bypass App.
+
+Почему исполнитель здесь, а не копией в каждом репо: за первый день боя нашлось три
+дефекта, и двадцать копий превратили бы каждую находку в двадцать PR. Плюс **I2 начинает
+выполняться конструкцией**: пока предусловия лежали в репозитории, который брокер же и
+мержит, проверка не могла быть себе свидетелем.
+
+Предпосылки в репозитории (действия владельца, не кода): App установлен; `MERGE_BROKER_APP_KEY`
++ `MERGE_BROKER_APP_ID` заведены; App внесён в bypass ruleset'а ветки.
+
 ## Rollout (per subproject) — follow-up, one PR each
 
 1. `cp ci/governance/vendor/governance.yml <repo>/.github/workflows/governance.yml`
