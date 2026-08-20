@@ -40,6 +40,14 @@ Not in this batch (ADR sequencing): GAP-5 tool-pins, GAP-6 cowork-dup, `human_me
   (`governance.yaml`, rulesets, required-check defs, `ci/governance/**`, `CODEOWNERS`) — they
   must land via `human_merge`, never `agent_merge`. Advisory by default; `--strict` blocks.
   Real blocking comes from the GitHub ruleset / CODEOWNERS on those paths.
+  **Agent-merge paths were added 2026-08-20** (ADR-ECO-008a, first landed in steward):
+  `.github/workflows/merge-broker.yml`, `.github/workflows/codex-review.yml`,
+  `.github/codex/**`, `profiles/approval-policy.yaml`. They define *what the agent may merge
+  and under which conditions* — the same class as everything above. The list is fleet-wide
+  rather than per-repo because the reusable gate takes no globs input and the paths are
+  identical everywhere; a repo without a broker simply has no such files. Note the guard is
+  the *second* line: the broker also refuses these paths itself, but that check lives inside
+  a file which is itself authority-root, so it cannot be its own witness.
 
 ## Rollout (per subproject) — follow-up, one PR each
 

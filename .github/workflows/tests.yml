@@ -1,0 +1,20 @@
+name: tests
+# Гоняет `ci/tests/`. До сих пор тесты в этом репо существовали, но их не запускал
+# ни один workflow — то есть регрессия ловилась бы только тем, кто вспомнит про
+# `pytest` локально. Для сторожа GOV-009 это особенно вредно: пропущенный путь в
+# `DEFAULT_GLOBS` не проявляется как поломка, сторож просто ничего не находит и
+# показывает зелёное. Тест без исполнителя такую дыру не закрывает, а маскирует.
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+      - run: uv run --frozen pytest -q
