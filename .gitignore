@@ -15,6 +15,7 @@
 !/CONTRIBUTING.md
 !/CODEOWNERS
 !/workspace-manifest.toml
+!/epics.toml
 !/bootstrap.sh
 !/pyproject.toml
 !/uv.lock

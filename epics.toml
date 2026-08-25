@@ -1,0 +1,212 @@
+# epics.toml — SSOT значений оси эпиков (ADR-ECO-010, схема: prograph-vault
+# authored/contracts/epics/v1/registry.schema.json).
+#
+# Дом: командный зонтик, рядом с workspace-manifest.toml, и по той же причине:
+# это общефлотовый факт, который меняется часто. Инструменты читают файл ЖИВЬЁМ
+# по пути — он НЕ вендорится. Вендорится только грамматика (контракт epics/v1).
+#
+# Изменение = PR в зонтик под CODEOWNERS. Добавление программы, эпика, класса
+# дефекта или сдвиг порога — обычная правка значений, НЕ ревизия контракта.
+#
+# ── Как читать поле `opened` в этом сиде ────────────────────────────────────
+# Это дата, начиная с которой поток ДОКАЗУЕМО активен по артефактам репо (ADR,
+# план, мерж PR), а не дата, когда владелец о нём подумал. У каждой записи в
+# `notes` указано основание — по нему правку легко проверить или оспорить.
+# Статусы в сиде проставлены по видимым артефактам и требуют подтверждения
+# владельцем: снаружи не всегда отличить «поток идёт» от «поток замер».
+
+schema_version = "1.0.0"
+adopted_at     = "2026-09-01"
+
+# ══════════════════════════ политика покрытия ══════════════════════════
+#
+# Две РАЗНЫЕ точки (ADR-ECO-010 D8): cutover разрешает сменить главную ось
+# дайджеста Robin, missing_error_after — сделать EP-MISSING блокирующим.
+# Совпади они, оставшиеся проценты встали бы поперёк CI.
+#
+# min_sample — защита знаменателя. Замер 2026-08-25: 2 открытых issue и
+# 1 открытый PR на 20 репо; доля по такому знаменателю не измеряет дисциплину,
+# её обваливает до нуля один случайный неразмеченный артефакт.
+
+[coverage_policy]
+robin_cutover_todo   = 0.98
+robin_cutover_issues = 0.90
+robin_cutover_prs    = 0.90
+missing_error_after  = "2026-11-01"
+min_sample           = 10
+
+# ══════════════════════════ исключения ══════════════════════════
+#
+# ЕДИНСТВЕННОЕ место, где живут изъятия из обязательности. Изъятие, которого
+# здесь нет, не существует: иначе «100 % покрытия» становится числом, которое
+# зависит от того, кто считает.
+
+[exclusions]
+merge_commits = true
+bot_authors   = ["dependabot[bot]", "copilot-pull-request-reviewer[bot]"]
+paths         = ["**/vendor/**"]
+
+# ══════════════════════════ программы ══════════════════════════
+
+[programs.eco]
+title = "Экосистема AI-оркестраторов"
+kind  = "ecosystem"
+notes = "Платформа и её инструментальный слой: 20+ репо воркспейса."
+
+[programs.airun]
+title = "airun"
+kind  = "external"
+notes = """\
+Сторонний продукт, который строится средствами экосистемы. Основание: \
+kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md — \
+«Kapelle.Product — airun M3 battle-test design». ЕДИНСТВЕННОЕ место сида, \
+где классификация kind требует явного подтверждения владельца.\
+"""
+
+# ══════════════════════════ эпики: eco ══════════════════════════
+
+[epics."eco.dark-factory"]
+title  = "AI Dark Factory"
+status = "active"
+goal   = "срез 0 исполняется насквозь, включая консоль продюсера"
+opened = "2026-07-11"
+notes  = "Основание: prograph-vault authored/notes/2026-07-11-ai-dark-factory-consolidated-roadmap.md + roadmaps/contracts-v1.yaml. Репо: maestro, deployer, dispatcher, steward, impresario."
+
+[epics."eco.governance-plane"]
+title  = "Governance-плоскость"
+status = "active"
+goal   = "гейты, вердикты и approval-trail работают fail-closed по всему флоту"
+opened = "2026-07-18"
+notes  = "Основание: ADR-ECO-004 (2026-07-18) + контракт gate-verdicts/v1 у steward, коллектор и панель у dispatcher."
+
+[epics."eco.plan-fields"]
+title  = "Операционная плоскость планов (plan-fields)"
+status = "active"
+goal   = "один парсер и один контракт полей плана на весь флот, с сенсором в CI"
+opened = "2026-07-27"
+notes  = "Основание: ADR-ECO-005 (2026-07-27), ADR-ECO-005a. Репо: dispatcher/packages/plan-fields, robin-runtime, devtools, зонтик."
+
+[epics."eco.epics"]
+title  = "Ось эпиков"
+status = "active"
+goal   = "каждый артефакт несёт поток; dispatcher показывает срез, Robin строит по нему дайджест"
+opened = "2026-08-25"
+notes  = "Основание: ADR-ECO-010 (2026-08-25) + контракт epics/v1. Этот файл — Ф0b того же эпика."
+
+[epics."eco.codex-review-rollout"]
+title  = "Раскатка codex-review по флоту"
+status = "active"
+goal   = "кит и caller-гейт у всех потребителей, побайтово одинаковые, с copy-integrity"
+opened = "2026-08-23"
+notes  = "Основание: пилот spec-runner PR #312/#313 (2026-08-23); kapelle — четвёртый потребитель (kapelle/TODO.md @id:codex-review-caller)."
+
+[epics."eco.discovery-runtime"]
+title  = "Discovery runtime"
+status = "active"
+goal   = "воркстримы A1/A2/B/C/D1/D2 доведены до рабочего рантайма"
+opened = "2026-08-18"
+notes  = "Основание: discovery/TODO.md «Решение о старте (принято 2026-08-18)»."
+
+[epics."eco.disputatio"]
+title  = "Disputatio — ступень боевых испытаний"
+status = "active"
+goal   = "ступени D0–D7 закрыты"
+opened = "2026-08-10"
+notes  = "Основание: disputatio/docs/plans/D0-transcript-integration-2026-08-10.md; D0–D4 закрыты (PR #1–#16)."
+
+[epics."eco.maestro-distributed"]
+title  = "Maestro: распределённое исполнение"
+status = "active"
+goal   = "Phase 3 — routing/registry/queues"
+opened = "2026-07-22"
+notes  = "Основание: maestro PR #90 «Phase 0: transport-agnostic execution layer» (мерж 2026-07-22); Phase 0→2c закрыты, Phase 3 открыт."
+
+[epics."eco.research-bench"]
+title  = "Research bench"
+status = "active"
+goal   = "провайдер-интерфейсы Maestro имеют доказательную базу (Stage B)"
+opened = "2026-07-25"
+notes  = "Основание: research-bench Stage A (PR #1–#6), Stage B verdict v2 (PR #7, 2026-07-26), docs/stage-b-closure-matrix.md."
+
+[epics."eco.observability"]
+title  = "Кросс-проектная наблюдаемость"
+status = "active"
+goal   = "четырёхсторонняя ось трассировки и стоимости замкнута"
+opened = "2026-04-25"
+notes  = "Основание: COWORK_CONTEXT.md §«Observability — кросс-проектная ось (4-сторонняя, 2026-04-25)»."
+
+[epics."eco.atp-platform"]
+title  = "ATP Platform — SDK, API и дашборд"
+status = "active"
+goal   = "Platform API/SDK, дашборд и архитектурная чистка доведены до целевого состояния"
+opened = "2026-04-16"
+notes  = "Основание: atp-platform/TODO.md §«Ecosystem Roadmap (план от 2026-04-16)», разделы Platform API & SDK / Dashboard UI / Architecture Cleanup."
+
+[epics."eco.tooling"]
+title  = "Инструментальный слой флота"
+status = "active"
+goal   = "devtools, github-checker и Robin видят весь флот и не врут молчанием"
+opened = "2026-07-26"
+notes  = "Основание: devtools/TODO.md (fleet plan-check, freshness-сенсор), robin-runtime/TODO.md (список зеркал, цикл самоулучшения), github-checker/TODO.md."
+
+[epics."eco.cadence"]
+title  = "Ритм и ритуалы экосистемы"
+status = "paused"
+goal   = "ADR-ECO-009 ратифицирован и доведён до governance-гейта"
+opened = "2026-08-24"
+notes  = "Основание: _cowork_output/decisions/2026-08-24-adr-eco-009-ecosystem-cadence.md — ЧЕРНОВИК, ещё не graduated в KB. Статус paused требует подтверждения владельца."
+
+[epics."eco.ops"]
+title  = "Эксплуатация и хвосты экосистемы"
+status = "standing"
+notes  = "Фон: починки из эксплуатации, гигиена репо, мелкие хвосты вне арок. У standing нет цели и даты закрытия by construction."
+
+# ══════════════════════════ эпики: airun ══════════════════════════
+
+[epics."airun.kapelle-m3"]
+title  = "airun M3 — Kapelle как execution backend"
+status = "active"
+goal   = "Kapelle воспроизводит референс-семантику forconcept и проходит критерии живучести §9.3"
+opened = "2026-08-13"
+notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3."
+
+[epics."airun.product-governance"]
+title  = "airun — product governance"
+status = "active"
+goal   = "конвейер Idea → approved ProductProposal проходится с полным evidence-следом"
+opened = "2026-08-12"
+notes  = "Основание: impresario/TODO.md §M4 — «QG-5 ПРОЙДЕН 2026-08-12», PP-101 approved v8. Дата = первая доказуемая активность, не начало потока; статус за владельцем."
+
+[epics."airun.ops"]
+title  = "airun — эксплуатация"
+status = "standing"
+notes  = "Фон по стороннему продукту: починки и хвосты вне милстоунов."
+
+# ══════════════════════════ классы дефектов ══════════════════════════
+#
+# Ортогональны эпику (ADR-ECO-010 D2): баг внутри работы над эпиком несёт ОБА
+# тега. Ставится только на починки. Список закрыт — расширяется этим же файлом.
+
+[defect_classes.pipeline]
+title = "Ошибки пайплайна"
+notes = "Прогон, оркестрация, resume, очереди: работа не доходит до конца или доходит дважды."
+
+[defect_classes.agent]
+title = "Ошибки агентов"
+notes = "Поведение модели/агента: неверный вывод, зацикливание, игнорирование инструкции, выдуманное свидетельство."
+
+[defect_classes.code]
+title = "Ошибки кода"
+notes = "Обычный дефект реализации внутри репо."
+
+[defect_classes.ui]
+title = "Ошибки интерфейса"
+notes = "Web, TUI, VSCode-расширение: показано не то, не показано, показано непонятно."
+
+[defect_classes.contract]
+title = "Ошибки контрактов"
+notes = "Дрейф вендоренной копии, разъехавшиеся пины, схема против фикстур, нарушенная совместимость."
+
+[defect_classes.ci]
+title = "Ошибки инструмента и CI"
+notes = "Гейт, сенсор, чекер: молчит когда должен падать, падает когда не должен, или измеряет не то. Отдельный класс, потому что зелёный прибор — не доказательство."
