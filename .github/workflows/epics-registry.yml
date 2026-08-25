@@ -1,0 +1,48 @@
+name: epics-registry
+# Ф1b of ADR-ECO-010 — the registry gate.
+#
+# `epics.toml` is the SSOT of the stream axis and is read LIVE by consumers (it is not
+# vendored, because a weekly-changing registry is stale the moment it is pinned). Until
+# this gate existed it was checked by review alone, so a typo in an epic key, a dangling
+# `moved_to`, or a standing epic carrying a closed date reached every consumer
+# unannounced — and an unknown epic is an error on the consumer side, i.e. someone
+# else's CI turning red for a mistake made here.
+#
+# BLOCKING by design, and cheap enough to be: it needs no fleet on disk and runs in
+# seconds. The fleet pass (coverage, EP-MISSING) is the nightly sensor instead — see
+# plan-fields-sensor.yml.
+
+on:
+  pull_request:
+    paths:
+      - "epics.toml"
+      - "ci/epics_sensor.py"
+      - "ci/tests/test_epics_sensor.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - ".github/workflows/epics-registry.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  registry:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Sync the pinned plan-fields package
+        run: uv sync --frozen
+
+      - name: Validate epics.toml against the pinned epics/v1 shape
+        run: uv run --frozen python ci/epics_sensor.py --registry-only --registry epics.toml
+
+      - name: Sensor unit tests
+        run: uv run --frozen pytest ci/tests/test_epics_sensor.py -q

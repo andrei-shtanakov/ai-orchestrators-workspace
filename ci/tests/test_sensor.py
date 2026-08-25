@@ -9,18 +9,21 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from plan_fields import RepoInput
+from plan_fields import ManifestIndex, RepoInput
 from plan_fields_sensor import (
     Pin,
     Source,
     build_inputs,
     freeze_sources,
-    manifest_name_set,
     manifest_repos,
     resolve_fleet,
 )
 
-MANIFEST_SET = {"maestro", "proctor"}
+# The package resolves names through a ManifestIndex, not a bare set: a repo
+# written with its declared `git_dir` locator must reach the same verdict as one
+# written with the manifest key. Passing a set was the API two package revisions
+# ago, and this test kept passing only because the umbrella pin was that stale.
+MANIFEST_SET = ManifestIndex(frozenset({"maestro", "proctor"}), {})
 
 
 def test_resolve_fleet_splits_canonical_and_legacy() -> None:
@@ -63,7 +66,6 @@ def test_manifest_helpers_skip_members_and_dupes() -> None:
             "sdk": {"package_name": "sdk", "git_dir": "maestro", "member": True},
         },
     }
-    assert manifest_name_set(m) == {"spec-runner", "maestro", "sdk"}  # members counted
     assert {name for name, _ in manifest_repos(m)} == {"spec-runner", "maestro"}
 
 
