@@ -82,18 +82,42 @@ class Caller:
 
 
 def load_policy(path: Path) -> Policy:
-    """Читает и валидирует caller-policy.toml."""
+    """Читает caller-policy.toml, fail-fast на неполной или кривой политике.
+
+    Дырявая политика (нет ключа в defaults, опечатка в override) без валидации
+    вырождается в бессмысленные находки вида «ожидается none» — это ошибка
+    конфигурации, а не дрейф флота, и падать она обязана громко (ValueError).
+    """
     raw = tomllib.loads(path.read_text(encoding="utf-8"))
-    pin = raw["pin"]
+    pin = raw.get("pin")
+    if not isinstance(pin, dict) or not isinstance(pin.get("ref"), str) or not pin["ref"]:
+        raise ValueError(f"{path.name}: [pin].ref обязателен и непуст")
+    require_sha = bool(pin.get("require_sha", False))
+    if require_sha and not SHA_RE.match(pin["ref"]):
+        raise ValueError(
+            f"{path.name}: require_sha=true, но pin.ref = `{pin['ref']}` — не 40-hex SHA"
+        )
     inputs = raw.get("inputs", {})
+    defaults = {k: bool(v) for k, v in inputs.get("defaults", {}).items()}
+    if set(defaults) != set(INPUT_KEYS):
+        raise ValueError(
+            f"{path.name}: [inputs.defaults] должен задавать ровно {sorted(INPUT_KEYS)}, "
+            f"задано {sorted(defaults)}"
+        )
+    overrides: dict[str, dict[str, bool]] = {}
+    for repo, override in inputs.get("overrides", {}).items():
+        unknown = set(override) - set(INPUT_KEYS)
+        if unknown:
+            raise ValueError(
+                f"{path.name}: override `{repo}` содержит неизвестные ключи "
+                f"{sorted(unknown)}"
+            )
+        overrides[repo] = {k: bool(v) for k, v in override.items()}
     return Policy(
         ref=pin["ref"],
-        require_sha=bool(pin.get("require_sha", False)),
-        defaults={k: bool(v) for k, v in inputs.get("defaults", {}).items()},
-        overrides={
-            repo: {k: bool(v) for k, v in ov.items()}
-            for repo, ov in inputs.get("overrides", {}).items()
-        },
+        require_sha=require_sha,
+        defaults=defaults,
+        overrides=overrides,
         exempt=frozenset(raw.get("fleet", {}).get("exempt", [])),
     )
 
@@ -231,7 +255,11 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    policy = load_policy(args.policy)
+    try:
+        policy = load_policy(args.policy)
+    except ValueError as error:
+        print(f"ERROR policy: {error}", file=sys.stderr)
+        return 2
     fleet = fleet_from_manifest(args.manifest)
     token = os.environ.get("GITHUB_TOKEN")
 

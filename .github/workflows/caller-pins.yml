@@ -27,7 +27,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      # Без токена намеренно: флот публичный, raw-fetch не требует auth, а
+      # repo-scoped github.token кросс-репных прав всё равно не даёт. Заодно job
+      # одинаково работает на fork-PR (секретов не нужно вовсе). Если во флоте
+      # появится приватный репо — заводить fleet-read PAT отдельным решением.
       - name: check caller pins across the fleet
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
         run: python ci/governance/check_caller_pins.py --github

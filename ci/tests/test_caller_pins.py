@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from check_caller_pins import (
     Policy,
     check_caller,
@@ -120,6 +122,53 @@ def test_fleet_from_real_manifest() -> None:
     assert {"maestro", "spec-runner", "prograph-vault", "kapelle"} <= names
     assert "atp-platform-sdk" not in names, "member=true не имеет своего каллера"
     assert len(names) == 22
+
+
+POLICY_TEMPLATE = """
+[pin]
+ref = "{ref}"
+require_sha = {require_sha}
+
+[inputs.defaults]
+{defaults}
+
+[inputs.overrides.robin-toolkit]
+{override}
+
+[fleet]
+exempt = []
+"""
+
+FULL_DEFAULTS = 'strict = true\nruntime-scan = true\nauthority-guard = false'
+
+
+def write_policy(tmp_path: Path, **kwargs: str) -> Path:
+    values = {
+        "ref": "governance-v2", "require_sha": "false",
+        "defaults": FULL_DEFAULTS, "override": 'runtime-scan = false',
+    } | kwargs
+    path = tmp_path / "caller-policy.toml"
+    path.write_text(POLICY_TEMPLATE.format(**values), encoding="utf-8")
+    return path
+
+
+def test_policy_missing_default_key_fails_fast(tmp_path: Path) -> None:
+    path = write_policy(tmp_path, defaults="strict = true")
+    with pytest.raises(ValueError, match="inputs.defaults"):
+        load_policy(path)
+
+
+def test_policy_unknown_override_key_fails_fast(tmp_path: Path) -> None:
+    path = write_policy(tmp_path, override="runtime_scan = false")
+    with pytest.raises(ValueError, match="неизвестные ключи"):
+        load_policy(path)
+
+
+def test_policy_require_sha_demands_sha_ref(tmp_path: Path) -> None:
+    path = write_policy(tmp_path, require_sha="true")
+    with pytest.raises(ValueError, match="40-hex"):
+        load_policy(path)
+    assert load_policy(write_policy(tmp_path, require_sha="true", ref=SHA)).require_sha
 
 
 def test_load_real_policy_matches_contract() -> None:
