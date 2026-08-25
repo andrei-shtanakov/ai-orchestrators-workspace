@@ -68,6 +68,20 @@ jobs:
             --out-dir "${GITHUB_WORKSPACE}/artifacts" \
             --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
+      - name: Run epics sensor (Ф1b — coverage warnings, structural findings block)
+        # Reuses the fleet clone above. Unlike the plan-fields pass this one CAN fail the
+        # run: a malformed or unknown epic is new ambiguity, not old debt, and the
+        # adoption period exists only for items that carry no epic at all. EP-MISSING
+        # hardens on the date in epics.toml, so the schedule never decides that itself.
+        working-directory: umbrella
+        run: |
+          uv run --frozen python ci/epics_sensor.py \
+            --registry epics.toml \
+            --manifest workspace-manifest.toml \
+            --workspace "${GITHUB_WORKSPACE}" \
+            --out-dir "${GITHUB_WORKSPACE}/artifacts" \
+            --generated-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
       - name: Upload snapshot + report
         uses: actions/upload-artifact@v4
         with:

@@ -48,9 +48,11 @@ except ModuleNotFoundError:  # pragma: no cover - py<3.11 fallback
     import tomli as tomllib  # type: ignore[no-redef]
 
 from plan_fields import (
+    ManifestIndex,
     RepoInput,
     check_fleet,
     check_legacy_fleet,
+    manifest_index,
     parse_fleet,
 )
 from plan_fields import __version__ as PLAN_FIELDS_VERSION
@@ -140,21 +142,6 @@ def manifest_repos(manifest: dict) -> list[tuple[str, dict]]:
     return out
 
 
-def manifest_name_set(manifest: dict) -> set[str]:
-    """Every canonical repo name the manifest declares — the fleet AUTHORITY set.
-
-    Includes members (they are real packages), so a reference to one is never
-    mis-flagged as naming a repo outside the fleet.
-    """
-    names: set[str] = set()
-    for section in ("cores", "apps", "tools"):
-        for _cid, entry in (manifest.get(section) or {}).items():
-            name = entry.get("package_name")
-            if isinstance(name, str):
-                names.add(name.lower())
-    return names
-
-
 def git_head(repo_dir: Path) -> str | None:
     """Resolve the checked-out HEAD SHA, or None if not a git checkout."""
     if not (repo_dir / ".git").exists():
@@ -234,14 +221,21 @@ def build_inputs(sources: list[Source], workspace: Path) -> list[RepoInput]:
     return inputs
 
 
-def resolve_fleet(inputs: list[RepoInput], manifest_set: set[str]) -> dict:
-    """Run the package's canonical + legacy passes; return structured results."""
-    snapshot = parse_fleet(inputs, manifest_set)
+def resolve_fleet(inputs: list[RepoInput], index: ManifestIndex) -> dict:
+    """Run the package's canonical + legacy passes; return structured results.
+
+    Takes a ``ManifestIndex``, not a bare name set: the package resolves every written
+    repo name through it, so a reference spelled with a declared ``git_dir`` locator
+    reaches the same verdict as one spelled with the manifest key. Handing it a plain
+    set was the older API, and the umbrella kept working only because its pin was two
+    package revisions behind the rest of the fleet.
+    """
+    snapshot = parse_fleet(inputs, index)
     canonical = list(snapshot["diagnostics"]) + check_fleet(snapshot)
     exclude = {
         (r["provenance"]["repo"], r["raw_ref"]) for r in snapshot["references"]
     }
-    legacy = check_legacy_fleet(inputs, manifest_set, exclude=exclude)
+    legacy = check_legacy_fleet(inputs, index, exclude=exclude)
 
     errors: list[str] = []
     warnings: list[str] = []
@@ -355,11 +349,12 @@ def build_snapshot(
     manifest: dict,
     workspace: Path,
     generated_at: str,
+    index: ManifestIndex,
 ) -> Snapshot:
     """Assemble the full Phase-0a snapshot (freeze → resolve → collect)."""
     sources, freeze_warnings = freeze_sources(manifest, workspace)
     inputs = build_inputs(sources, workspace)
-    result = resolve_fleet(inputs, manifest_name_set(manifest))
+    result = resolve_fleet(inputs, index)
     return Snapshot(
         schema_version=SNAPSHOT_SCHEMA,
         phase="0a",
@@ -421,7 +416,9 @@ def main() -> int:
 
     generated_at = args.generated_at or datetime.now(timezone.utc).isoformat()
     manifest = load_manifest(args.manifest)
-    snap = build_snapshot(manifest, args.workspace, generated_at)
+    snap = build_snapshot(
+        manifest, args.workspace, generated_at, manifest_index(args.manifest)
+    )
 
     args.out_dir.mkdir(parents=True, exist_ok=True)
     (args.out_dir / args.json).write_text(
