@@ -23,7 +23,7 @@ from plan_fields_sensor import (
 # written with its declared `git_dir` locator must reach the same verdict as one
 # written with the manifest key. Passing a set was the API two package revisions
 # ago, and this test kept passing only because the umbrella pin was that stale.
-MANIFEST_SET = ManifestIndex(frozenset({"maestro", "proctor"}), {})
+MANIFEST_INDEX = ManifestIndex(frozenset({"maestro", "proctor"}), {})
 
 
 def test_resolve_fleet_splits_canonical_and_legacy() -> None:
@@ -33,7 +33,7 @@ def test_resolve_fleet_splits_canonical_and_legacy() -> None:
         "- [ ] leg @owner:o @blocked_by:maestro#gone\n"  # legacy dangling
     )
     inputs = [RepoInput("maestro", maestro), RepoInput("proctor", proctor)]
-    r = resolve_fleet(inputs, MANIFEST_SET)
+    r = resolve_fleet(inputs, MANIFEST_INDEX)
 
     assert r["edges"] == 1
     # canonical stale (stable @id identity) -> error
@@ -52,7 +52,7 @@ def test_pilot_relation_is_never_double_counted() -> None:
     maestro = "- [ ] r open @owner:o @id:r\n"
     proctor = "- [ ] p @owner:o @blocked_by:todo://maestro/r @id:p\n"
     r = resolve_fleet(
-        [RepoInput("maestro", maestro), RepoInput("proctor", proctor)], MANIFEST_SET
+        [RepoInput("maestro", maestro), RepoInput("proctor", proctor)], MANIFEST_INDEX
     )
     assert r["edges"] == 1
     assert r["legacy"] == []  # the @id'd relation is canonical only
