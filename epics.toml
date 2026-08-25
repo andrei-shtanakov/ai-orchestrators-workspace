@@ -114,12 +114,60 @@ goal   = "ступени D0–D7 закрыты"
 opened = "2026-08-10"
 notes  = "Основание: disputatio/docs/plans/D0-transcript-integration-2026-08-10.md; D0–D4 закрыты (PR #1–#16)."
 
-[epics."eco.maestro-distributed"]
-title  = "Maestro: распределённое исполнение"
+[epics."eco.distributed-execution"]
+title  = "Распределённое исполнение"
 status = "active"
-goal   = "Phase 3 — routing/registry/queues"
+goal   = "исполнение распределено через явную transport/MCP-границу, маршрутизация работает, и это доказано dogfooding-ом, а не только тестами"
 opened = "2026-07-22"
-notes  = "Основание: maestro PR #90 «Phase 0: transport-agnostic execution layer» (мерж 2026-07-22); Phase 0→2c закрыты, Phase 3 открыт."
+notes  = """\
+Преемник eco.maestro-distributed: поток шире одного Maestro. Входит: Maestro \
+distributed execution (PR #90 «Phase 0: transport-agnostic execution layer», мерж \
+2026-07-22; Phase 0→2c закрыты, Phase 3 открыт), proctor Phase 3 `mcp/` и dogfooding \
+Maestro. Proctor семантически пересекается с Maestro по распределённому исполнению, \
+поэтому отдельный repo-эпик здесь создал бы искусственную ось.\
+"""
+
+[epics."eco.maestro-distributed"]                  # надгробие, не переиспользовать
+title    = "Maestro: распределённое исполнение (прежнее имя)"
+moved_to = "eco.distributed-execution"
+moved_at = "2026-08-25"
+notes    = "Поток не закрыт, а расширен за пределы одного репо — см. преемника. Ретроспективно размеченные артефакты резолвятся в конечный id; новый артефакт с этим id получает EP-MOVED."
+
+[epics."eco.spec-toolchain"]
+title  = "Spec-toolchain"
+status = "active"
+goal   = "spec-driven execution поставляется как один контур: спека валидируется и исполняется предсказуемо, а её VSCode-поверхность доставляется вместе с ней"
+opened = "2026-08-25"
+notes  = """\
+Поперечный, не repo-shaped: executor (spec-runner) и его VSCode-surface — один контур \
+поставки. Входит: producer/parser, целостность оракула, политика ретраев и ревью, D7 и \
+связанные design tracks; в spec-runner-vscode — CI, поставка и здоровье зависимостей. \
+CI и dependency health здесь качество продукта, а не случайный ops.\
+"""
+
+[epics."eco.routing"]
+title  = "Маршрутизация задач"
+status = "active"
+goal   = "policy-владелец и downstream-потребители маршрутизации сходятся на одном контракте"
+opened = "2026-08-25"
+notes  = """\
+Объединяет владельца политики и её потребителей, а не репозитории: arbiter shadow \
+routing (Phase 2), benchmark-aware routing (R-07) и opt-in proctor к arbiter routing.\
+"""
+
+[epics."eco.libretto-runtime"]
+title  = "Libretto runtime"
+status = "active"
+goal   = "семантика рантайма и языковые решения Libretto зафиксированы и проверяемы"
+opened = "2026-08-25"
+notes  = "Назван по capability, а не по каталогу: продуктовый поток, у которого со временем могут появиться другие потребители."
+
+[epics."eco.knowledge-graph"]
+title  = "Граф знаний экосистемы"
+status = "active"
+goal   = "граф, реестр и индекс воркспейса не расходятся, а расхождение видно машинно"
+opened = "2026-08-25"
+notes  = "prograph exporter hygiene, дрейф graph ↔ registry, консистентность workspace/index. Назван по capability, а не по каталогу."
 
 [epics."eco.research-bench"]
 title  = "Research bench"
