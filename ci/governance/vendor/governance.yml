@@ -1,17 +1,22 @@
 # CANONICAL CALLER — copy this to each subproject's `.github/workflows/governance.yml`.
 # ADR-ECO-004 D5. This is a THIN CALLER: a pinned reference to the reusable gate workflow at
 # ai-orchestrators-workspace/.github/workflows/governance-gate.yml (checks under ci/governance/).
-# No code is copied into consumers. The `governance-v2` tag is the pin, kept immutable by the
-# umbrella's `governance-*` tag ruleset (retag/delete blocked), not by git tag semantics; the
-# umbrella meta-enforcer verifies every repo references the canonical pin.
+# No code is copied into consumers.
+#
+# Pin policy (owner decision 2026-08-25, SSOT: ci/governance/caller-policy.toml):
+# pin by 40-hex COMMIT SHA — never a branch, and (target state) not a tag. The
+# `governance-*` tag ruleset does block retag/delete, but it carries bypass actors
+# (RepositoryRole, DeployKey, owner-always), so a tag is weaker than a SHA. The
+# meta-enforcer `check_caller_pins.py` (workflow caller-pins.yml) verifies every
+# fleet repo's caller: uses == umbrella-ref == canonical pin, inputs match policy.
 #
 # Rollout per repo:
 #   1. cp this file to .github/workflows/governance.yml
-#   2. keep the `@governance-v2` pin (a protected, immutable tag; bump to governance-vN
-#      for a new release — never point at a branch)
-#   3. set authority-guard: true ONLY in repos holding authority-root paths
-#      (ai-orchestrators-workspace, prograph-vault); KB/docs repos also set
-#      runtime-scan: false + strict: false (guard advisory)
+#   2. replace BOTH `<PINNED-SHA>` below with the canonical pin from
+#      ci/governance/caller-policy.toml (`pin.ref`)
+#   3. inputs strict / runtime-scan / authority-guard: keep the defaults below unless
+#      caller-policy.toml documents an override for this repo (now: prograph-vault,
+#      robin-toolkit) — an undocumented deviation is a meta-enforcer finding
 #   4. add "governance / gate" to the repo's branch ruleset as a required check (D4)
 name: governance
 permissions:
@@ -22,9 +27,9 @@ on:
 
 jobs:
   governance:
-    uses: andrei-shtanakov/ai-orchestrators-workspace/.github/workflows/governance-gate.yml@governance-v2
+    uses: andrei-shtanakov/ai-orchestrators-workspace/.github/workflows/governance-gate.yml@<PINNED-SHA>
     with:
-      umbrella-ref: "governance-v2"   # same tag as the uses: pin above
+      umbrella-ref: "<PINNED-SHA>"   # same SHA as the uses: pin above
       strict: true
       runtime-scan: true        # runtime code — GOV-003 applies
       authority-guard: false    # -> true only in umbrella / prograph-vault
