@@ -69,18 +69,34 @@ reviews непагинированы — иначе полноту трёх пр
 Предпосылки в репозитории (действия владельца, не кода): App установлен; `MERGE_BROKER_APP_KEY`
 + `MERGE_BROKER_APP_ID` заведены; App внесён в bypass ruleset'а ветки.
 
-## Rollout (per subproject) — follow-up, one PR each
+## Rollout (per subproject) — one PR each
 
 1. `cp ci/governance/vendor/governance.yml <repo>/.github/workflows/governance.yml`
-2. Replace both `<PIN>` with a **SHA or tag** of this repo (never a branch).
-3. Set `authority-guard: true` only in `ai-orchestrators-workspace` and `prograph-vault`.
+2. Replace both `<PINNED-SHA>` with the canonical pin from `caller-policy.toml`
+   (`pin.ref`; policy: a 40-hex **commit SHA** of this repo — never a branch, and,
+   once `require_sha = true`, not a tag either).
+3. Inputs `strict` / `runtime-scan` / `authority-guard`: policy defaults from
+   `caller-policy.toml`, deviations only via a documented per-repo override there
+   (now: `prograph-vault`, `robin-toolkit`). An undocumented deviation is a
+   meta-enforcer finding.
 4. Add `governance / gate` as a **required check** in the repo's branch ruleset (ADR-ECO-004
    D4 — rulesets, not required-owner-review).
 
-## Meta-enforcer (planned, batch 2)
+## Meta-enforcer (batch 2 — реализован 2026-08-25)
 
-`check-release-drift.py` (or a sibling) verifies each repo's vendored caller references the
-canonical pin — so a stale or missing gate is itself a drift finding. Not wired yet.
+`check_caller_pins.py` + политика `caller-policy.toml` + workflow `caller-pins.yml`
+(вт cron + dispatch + PR по своим путям). Для каждого члена `workspace-manifest.toml`
+(кроме `fleet.exempt`) проверяет: каллер существует; `uses` == `umbrella-ref` ==
+канонический `pin.ref`; при `require_sha` ref — 40-hex commit SHA; inputs равны
+дефолтам политики с учётом документированных overrides. Отсутствующий или
+дрейфанувший каллер — находка, exit 1. Локальный прогон: `--fleet-dir ..`.
+
+Переходное состояние: `pin.ref = governance-v2` — тег, защищённый tag-ruleset'ом
+`governance-rule`; у ruleset'а есть **bypass actors** (RepositoryRole, DeployKey,
+владелец — always), поэтому целевое состояние — SHA. Порядок (решение владельца
+2026-08-25): после мержа этого контроля маленький PR ставит `pin.ref = <merge-SHA>`
+и `require_sha = true`, затем 22 caller-PR переводят `uses`/`umbrella-ref` на тот же
+SHA, не трогая inputs.
 
 ## Local run
 

@@ -1,0 +1,33 @@
+name: caller-pins
+# Meta-enforcer пинов governance-каллеров (ADR-ECO-004 batch 2, реализован 2026-08-25).
+# Сверяет каждый член workspace-manifest.toml с ci/governance/caller-policy.toml:
+# каллер существует; uses == umbrella-ref == канонический pin.ref; при require_sha
+# ref — 40-hex commit SHA; inputs равны дефолтам + документированным overrides.
+# Дрейф или отсутствие каллера = красный прогон (умбрелла-only, чужие PR не блокирует).
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "30 4 * * 2"   # вт, до Hardening Sweep (09:00 Tbilisi = 05:00 UTC)
+  pull_request:
+    paths:
+      - "ci/governance/check_caller_pins.py"
+      - "ci/governance/caller-policy.toml"
+      - ".github/workflows/caller-pins.yml"
+      - "workspace-manifest.toml"
+
+permissions:
+  contents: read
+
+jobs:
+  pins:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Версия Python задаётся явно, как в соседних workflow этого репо.
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: check caller pins across the fleet
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: python ci/governance/check_caller_pins.py --github
