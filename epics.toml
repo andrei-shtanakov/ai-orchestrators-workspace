@@ -204,6 +204,32 @@ goal   = "ADR-ECO-009 ратифицирован и доведён до governan
 opened = "2026-08-24"
 notes  = "Основание: _cowork_output/decisions/2026-08-24-adr-eco-009-ecosystem-cadence.md — ЧЕРНОВИК, ещё не graduated в KB. Статус paused требует подтверждения владельца."
 
+[epics."eco.agents-catalog"]
+title  = "Общий каталог агентов"
+status = "active"
+goal   = "распространение, резолюция, conformance и runtime-потребление общего agents catalog едины во всех инструментах"
+opened = "2026-07-02"
+notes  = """\
+Основание: ADR-ECO-003b (catalog distribution). Кросс-флотовая capability, а не работа \
+одного репо: каталог резолвится и потребляется каждым инструментом, поэтому пункты \
+Maestro про XDG-путь, override-слой моделей, `default = true`, fail-loud на отсутствующем \
+файле, плоскость harnesses, вынос загрузчика в общую библиотеку и детект дублей вендора \
+живут здесь, а не в repo-эпике.\
+"""
+
+[epics."eco.runtime-cost-control"]
+title  = "Контроль стоимости рантайма"
+status = "active"
+goal   = "протокол estimate → reserve → execute → record → settle работает: бюджет проверяется ДО расхода, а не объясняется после"
+opened = "2026-07-15"
+notes  = """\
+Основание: ADR-ECO-003e (runtime cost control). Отдельный поток, НЕ observability: \
+observability сообщает, что произошло, а cost control принимает синхронные решения до и \
+во время расхода — разная нормативная сила, разные последствия отказа. Входит: capture \
+usage, price snapshots, enforcement бюджетов; обычная телеметрия остаётся в \
+eco.observability.\
+"""
+
 [epics."eco.ops"]
 title  = "Эксплуатация и хвосты экосистемы"
 status = "standing"
