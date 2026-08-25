@@ -91,12 +91,12 @@ reviews непагинированы — иначе полноту трёх пр
 дефолтам политики с учётом документированных overrides. Отсутствующий или
 дрейфанувший каллер — находка, exit 1. Локальный прогон: `--fleet-dir ..`.
 
-Переходное состояние: `pin.ref = governance-v2` — тег, защищённый tag-ruleset'ом
-`governance-rule`; у ruleset'а есть **bypass actors** (RepositoryRole, DeployKey,
-владелец — always), поэтому целевое состояние — SHA. Порядок (решение владельца
-2026-08-25): после мержа этого контроля маленький PR ставит `pin.ref = <merge-SHA>`
-и `require_sha = true`, затем 22 caller-PR переводят `uses`/`umbrella-ref` на тот же
-SHA, не трогая inputs.
+Канон с 2026-08-25: `pin.ref = 51513e8aa0935e76b3327d6298409a683960a6fb`
+(merge-SHA control-PR #19, `require_sha = true`). Тег `governance-v2` остаётся в
+истории, но политикой запрещён: tag-ruleset `governance-rule` несёт **bypass actors**
+(RepositoryRole, DeployKey, владелец — always), SHA этого хвоста не имеет. Bump
+гейта = новый merge-SHA в этой политике + флотовый проход каллеров (та же цена,
+что и bump тега).
 
 ## Local run
 

@@ -7,17 +7,18 @@
 # (RepositoryRole, DeployKey, владелец — always): SHA-пин снимает остаточное
 # доверие к настройкам репо и админ-контуру.
 #
-# Переходное состояние (этот PR): ref = governance-v2, require_sha = false.
-# После human-merge: отдельный маленький PR ставит ref = <merge-SHA> этого PR
-# и require_sha = true; затем 22 caller-PR переводят uses/umbrella-ref на тот же SHA.
+# Канон = merge-SHA control-PR #19 (51513e8): первый коммит main, содержащий
+# и политику, и enforcer — пин, который сам несёт свой контроль.
+# До схождения флота (22 caller-PR) прогоны caller-pins будут красными по
+# немигрировавшим репо — это ожидаемый сигнал rollout'а, не поломка.
 
 schema_version = "1"
 
 [pin]
 # Канонический ref: и `uses: ...governance-gate.yml@<ref>`, и `umbrella-ref: "<ref>"`.
-ref = "governance-v2"
+ref = "51513e8aa0935e76b3327d6298409a683960a6fb"
 # true → ref обязан быть 40-hex commit SHA (ветки и теги запрещены политикой).
-require_sha = false
+require_sha = true
 
 [inputs.defaults]
 # Каллер обязан задавать все три input'а явно и ровно так, если нет override ниже.
