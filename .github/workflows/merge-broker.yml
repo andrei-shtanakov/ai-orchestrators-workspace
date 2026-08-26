@@ -106,7 +106,7 @@ jobs:
               query($owner:String!, $name:String!, $pr:Int!) {
                 repository(owner:$owner, name:$name) {
                   pullRequest(number:$pr) {
-                    state isDraft mergeable headRefOid
+                    state isDraft mergeable headRefOid baseRefName
                     files(first:100) { nodes { path } pageInfo { hasNextPage } }
                     reviewThreads(first:100) { nodes { isResolved } pageInfo { hasNextPage } }
                     reviews(first:100) { nodes { state author { login } } pageInfo { hasNextPage } }
@@ -138,6 +138,47 @@ jobs:
           # CONFLICTING — конфликт; UNKNOWN здесь означает, что GitHub не досчитал за
           # весь опрос выше: это по-прежнему отказ, а не разрешение.
           [ "$mergeable" = MERGEABLE ] || refuse "mergeable=$mergeable"
+
+          # Update-branch-дисциплина (steward#116, условие включения D1): зелёный
+          # rollup относится к merge-дереву на момент прогонов чеков, а движение
+          # base не перезапускает ни один чек — событие в PR при этом не приходит.
+          # Человека, который увидел бы плашку out-of-date, в агентском контуре
+          # нет, поэтому отставание проверяется ЗДЕСЬ и доводится до свежести
+          # действием, а не принимается на веру. Ruleset «require up to date»
+          # отклонён (O(N^2) прогонов при серийном мерже очереди агентских PR),
+          # merge queue — до перевода required-чеков на `merge_group`.
+          #
+          # Порядок: проверка стоит ДО чтения rollup — зелёный rollup отставшей
+          # ветки и есть то, чему нельзя верить. Сравнение честное, через
+          # compare API (`behind_by` = коммиты base, которых нет в head), а не
+          # `mergeStateStatus=BEHIND`: тот вычисляется только при включённом
+          # strict-требовании ruleset'а, которого у нас нет.
+          #
+          # Форма отказа — update-branch + именованный отказ, БЕЗ ожидания
+          # зелёного внутри прогона: rollup включает платное codex-ревью и
+          # CI до десятков минут (atp-platform), а висящий прогон брокера —
+          # это невидимое состояние. Обновление перезапускает чеки новым SHA;
+          # повторный диспатч после зелёного — работа вызывающего контура
+          # (оператор сегодня, detection loop при D1). Идемпотентно: повторный
+          # вызов на уже свежей ветке проходит проверку насквозь.
+          base_ref=$(jq -r .baseRefName <<<"$pr")
+          head_oid=$(jq -r .headRefOid <<<"$pr")
+          behind=$(gh api "repos/$REPO/compare/$base_ref...$head_oid" \
+            --jq .behind_by 2>/dev/null) || refuse \
+            "compare API не ответил — отставание от base недоказуемо, мерж вслепую запрещён"
+          case "$behind" in
+            ''|*[!0-9]*) refuse "compare API вернул не число behind_by: '$behind'" ;;
+          esac
+          if [ "$behind" -gt 0 ]; then
+            # `expected_head_sha` — CAS: если голова уехала между fetch и update,
+            # GitHub откажет (422), и это честный отказ, а не гонка.
+            if gh api -X PUT "repos/$REPO/pulls/$PR/update-branch" \
+                 -f expected_head_sha="$head_oid" >/dev/null 2>&1; then
+              refuse "ветка отстала от $base_ref на $behind коммит(ов) — ветка ОБНОВЛЕНА, чеки перезапущены новым SHA; повторить диспатч брокера после зелёного rollup"
+            else
+              refuse "ветка отстала от $base_ref на $behind коммит(ов), а update-branch не прошёл (конфликт, гонка head или права) — вмешательство человека"
+            fi
+          fi
 
           # Пустой rollup (`null`) — это «чеков нет», а не «чеки прошли». Репо без CI
           # не получает мерж даром.
