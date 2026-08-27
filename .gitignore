@@ -17,6 +17,7 @@
 !/workspace-manifest.toml
 !/epics.toml
 !/bootstrap.sh
+!/scripts/
 !/pyproject.toml
 !/uv.lock
 
