@@ -25,3 +25,36 @@ jobs:
       # setup-uv@v6 — та же мажорная версия, что у соседних workflow этого репо.
       - uses: astral-sh/setup-uv@v6
       - run: uv run --frozen pytest -q
+
+  # Copy-integrity вендоренного review-kit (гарантия 1 из двух; вторая —
+  # review-kit-drift.yml). Механика чтения checksum.sh из BASE — как у всех
+  # потребителей кита: автор PR не проверяет себя своим же чекером.
+  review-kit-integrity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: checksum.sh из base против дерева PR
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          if git cat-file -e "$BASE_SHA:scripts/review/checksum.sh" 2>/dev/null; then
+            mode=$(git ls-tree "$BASE_SHA" -- scripts/review/checksum.sh | cut -d' ' -f1)
+            case "$mode" in
+              100644|100755) ;;
+              *)
+                echo "::error::checksum.sh в base — не обычный файл (режим $mode)"
+                exit 1 ;;
+            esac
+            mkdir -p "$RUNNER_TEMP/trusted-kit"
+            git show "$BASE_SHA:scripts/review/checksum.sh" \
+              > "$RUNNER_TEMP/trusted-kit/checksum.sh"
+            sh "$RUNNER_TEMP/trusted-kit/checksum.sh" \
+              --pin scripts/review/PIN --root .
+          else
+            echo "::notice::бутстрап: checksum.sh в base ещё нет —" \
+              "целостность этого PR держится на его ревью; после мержа" \
+              "чекер из base включится сам."
+          fi
