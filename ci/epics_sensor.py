@@ -35,6 +35,33 @@ from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
+UMBRELLA_REPO = "ai-orchestrators-workspace"
+UMBRELLA_ROOT = Path(__file__).resolve().parents[1]
+
+
+def umbrella_checkout(workspace: Path, umbrella_root: Path | None = None) -> Path | None:
+    """The umbrella's own checkout when it is part of the measured workspace.
+
+    The umbrella carries a `TODO.md` but is **not** a manifest entry — the manifest
+    lists the set it clones, not itself — so manifest-driven discovery skips it and
+    its own backlog stays out of the coverage denominator. That is the one repo
+    that must not be exempt: it is the repo enforcing the discipline.
+
+    Located by this file, never by directory name: the checkout is `umbrella/` in
+    CI and `ai-orchestrators-workspace/` on a workstation, and a name-based rule
+    would silently miss one of the two. Returns None when the umbrella lies outside
+    the workspace under measurement (a foreign fleet root, or a unit test's tmp
+    workspace) — there its TODO is not part of the answer.
+    """
+    # Resolved at call time, never bound as a default: a default argument freezes
+    # the constant at import and no override — a test's, or a wrapper's — can reach it.
+    umbrella_root = umbrella_root or UMBRELLA_ROOT
+    try:
+        umbrella_root.resolve().relative_to(workspace.resolve())
+    except ValueError:
+        return None
+    return umbrella_root.resolve()
+
 try:
     from plan_fields import (
         RepoInput,
@@ -127,7 +154,10 @@ def build(registry_path: Path, manifest: Path | None, workspace: Path | None,
         return snap
 
     index = manifest_index(manifest)
-    checkouts = checkout_map(workspace, index)
+    checkouts = dict(checkout_map(workspace, index))
+    self_root = umbrella_checkout(workspace)
+    if self_root is not None:
+        checkouts.setdefault(UMBRELLA_REPO, self_root)
     inputs: list[RepoInput] = []
     for name, root in sorted(checkouts.items()):
         todo = root / "TODO.md"

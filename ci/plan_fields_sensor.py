@@ -156,6 +156,32 @@ def git_head(repo_dir: Path) -> str | None:
     return proc.stdout.strip()
 
 
+UMBRELLA_REPO = "ai-orchestrators-workspace"
+UMBRELLA_ROOT = Path(__file__).resolve().parents[1]
+
+
+def umbrella_git_dir(workspace: Path, umbrella_root: Path | None = None) -> str | None:
+    """The umbrella's own path relative to the workspace, or None when outside it.
+
+    The umbrella carries a `TODO.md` but is **not** a manifest entry — the manifest
+    lists the set it clones, not itself — so manifest-driven discovery skipped it and
+    its own backlog never reached the snapshot. That is the one repo that must not be
+    exempt: it is the repo enforcing the discipline on everyone else.
+
+    Located by this file, never by directory name: the checkout is `umbrella/` in CI
+    and `ai-orchestrators-workspace/` on a workstation, and a name-based rule would
+    silently miss one of the two. None when the umbrella lies outside the measured
+    workspace (a foreign fleet root, or a unit test's tmp workspace).
+    """
+    # Resolved at call time, never bound as a default: a default argument freezes
+    # the constant at import and no override — a test's, or a wrapper's — can reach it.
+    umbrella_root = umbrella_root or UMBRELLA_ROOT
+    try:
+        return str(umbrella_root.resolve().relative_to(workspace.resolve()))
+    except ValueError:
+        return None
+
+
 def freeze_sources(manifest: dict, workspace: Path) -> tuple[list[Source], list[str]]:
     """Freeze each repo's HEAD SHA before analysis; collect provenance + warnings."""
     sources: list[Source] = []
@@ -195,6 +221,28 @@ def freeze_sources(manifest: dict, workspace: Path) -> tuple[list[Source], list[
                 present=present,
                 resolved_sha=resolved,
                 pin_drift=pin_drift,
+            )
+        )
+
+    # The umbrella itself: no manifest entry, therefore no pin — its frozen root is
+    # simply the checked-out HEAD. `setdefault`-style guard, so a future manifest
+    # entry for the umbrella wins and the repo is never counted twice.
+    self_dir = umbrella_git_dir(workspace)
+    if self_dir is not None and self_dir not in {s.git_dir for s in sources}:
+        self_root = workspace / self_dir
+        resolved = git_head(self_root)
+        if resolved is None:
+            warnings.append(
+                f"{UMBRELLA_REPO}: umbrella checkout at {self_dir} has no resolvable "
+                f"HEAD — self-scan skipped"
+            )
+        sources.append(
+            Source(
+                repo=UMBRELLA_REPO,
+                git_dir=self_dir,
+                pin=Pin("branch", "<default>"),
+                present=resolved is not None,
+                resolved_sha=resolved,
             )
         )
     return sources, warnings

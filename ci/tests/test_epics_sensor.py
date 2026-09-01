@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import date
 from pathlib import Path
 
+import epics_sensor
 from epics_sensor import _blocking, _coverage, _escalate, build
 
 _REGISTRY = Path(__file__).resolve().parent.parent.parent / "epics.toml"
@@ -126,3 +127,41 @@ def test_tagged_items_are_counted_by_epic_and_by_defect(tmp_path: Path) -> None:
     assert snap.per_epic == {"eco.ops": 2}
     assert snap.per_defect == {"pipeline": 1}
     assert snap.unclassified == 0
+
+
+def test_umbrella_own_todo_counts_toward_coverage(tmp_path: Path, monkeypatch) -> None:
+    """Репо, который навязывает разметку флоту, не может быть изъят из её замера.
+
+    Зонтик не запись манифеста — манифест перечисляет набор, который он клонирует,
+    а не себя, — поэтому manifest-driven discovery его пропускала, и его собственные
+    пункты не попадали в знаменатель покрытия. Молча: ничего не падало.
+    """
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    _repo(ws, "demo", "- [ ] a @id:a @epic:eco.dark-factory\n")
+    self_root = ws / "umbrella"
+    self_root.mkdir()
+    (self_root / "TODO.md").write_text("- [ ] own @id:own @epic:eco.dark-factory\n", encoding="utf-8")
+    monkeypatch.setattr(epics_sensor, "UMBRELLA_ROOT", self_root)
+
+    manifest = _manifest(tmp_path, '[apps.demo]\ngit_dir = "demo"\n')
+    snap = build(_REGISTRY, manifest, ws, "2026-09-01T00:00:00Z", date(2026, 9, 1))
+
+    assert "ai-orchestrators-workspace" in snap.repos_read
+    todo_cov = next(c for c in snap.coverage if c["plane"] == "todo")
+    assert todo_cov["tagged"] == 2
+
+
+def test_umbrella_outside_the_workspace_is_not_scanned(tmp_path: Path, monkeypatch) -> None:
+    """Чужой корень флота не должен подмешивать свой бэклог в чужой замер."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    _repo(ws, "demo", "- [ ] a @id:a @epic:eco.dark-factory\n")
+    outside = tmp_path / "elsewhere"
+    outside.mkdir()
+    (outside / "TODO.md").write_text("- [ ] own @id:own @epic:eco.dark-factory\n", encoding="utf-8")
+    monkeypatch.setattr(epics_sensor, "UMBRELLA_ROOT", outside)
+
+    manifest = _manifest(tmp_path, '[apps.demo]\ngit_dir = "demo"\n')
+    snap = build(_REGISTRY, manifest, ws, "2026-09-01T00:00:00Z", date(2026, 9, 1))
+    assert "ai-orchestrators-workspace" not in snap.repos_read
