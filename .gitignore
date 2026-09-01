@@ -12,6 +12,7 @@
 !/ci/
 !/docs/
 !/README.md
+!/TODO.md
 !/CONTRIBUTING.md
 !/CODEOWNERS
 !/workspace-manifest.toml

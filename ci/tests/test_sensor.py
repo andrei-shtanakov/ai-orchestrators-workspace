@@ -10,6 +10,9 @@ from __future__ import annotations
 from pathlib import Path
 
 from plan_fields import ManifestIndex, RepoInput
+import subprocess
+
+import plan_fields_sensor
 from plan_fields_sensor import (
     Pin,
     Source,
@@ -17,6 +20,7 @@ from plan_fields_sensor import (
     freeze_sources,
     manifest_repos,
     resolve_fleet,
+    umbrella_git_dir,
 )
 
 # The package resolves names through a ManifestIndex, not a bare set: a repo
@@ -97,3 +101,62 @@ def test_broken_clone_is_not_frozen_and_never_available_without_a_commit(
     assert any("HEAD unresolved" in w for w in warnings)
     inp = build_inputs(sources, tmp_path)[0]
     assert inp.available is False and inp.commit is None
+
+
+def _git_repo(root: Path, todo: str) -> Path:
+    """A real checkout: freeze_sources only reaches TODO through a resolvable HEAD."""
+    root.mkdir(parents=True)
+    (root / "TODO.md").write_text(todo, encoding="utf-8")
+    subprocess.run(["git", "init", "-q", str(root)], check=True)
+    subprocess.run(["git", "-C", str(root), "add", "-A"], check=True)
+    subprocess.run(
+        ["git", "-C", str(root), "-c", "user.email=t@t", "-c", "user.name=t",
+         "commit", "-qm", "seed"],
+        check=True,
+    )
+    return root
+
+
+def test_umbrella_git_dir_is_located_by_file_not_by_directory_name(tmp_path: Path) -> None:
+    """CI checks the umbrella out as `umbrella/`, a workstation as its repo name."""
+    ws = tmp_path / "ws"
+    (ws / "umbrella").mkdir(parents=True)
+    assert umbrella_git_dir(ws, ws / "umbrella") == "umbrella"
+    assert umbrella_git_dir(ws, ws / "ai-orchestrators-workspace") == "ai-orchestrators-workspace"
+    # outside the measured workspace — not part of the answer
+    assert umbrella_git_dir(ws, tmp_path / "elsewhere") is None
+
+
+def test_umbrella_own_todo_reaches_the_snapshot(tmp_path: Path, monkeypatch) -> None:
+    """The repo enforcing the discipline must not be exempt from it.
+
+    The umbrella is not a manifest entry — the manifest lists the set it clones,
+    not itself — so manifest-driven discovery skipped it and its own backlog never
+    reached the snapshot. Nothing failed; the file was simply absent from the answer.
+    """
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    _git_repo(ws / "maestro", "- [ ] a @owner:github:o @id:a\n")
+    self_root = _git_repo(ws / "umbrella", "- [ ] own @owner:github:o @id:own\n")
+    monkeypatch.setattr(plan_fields_sensor, "UMBRELLA_ROOT", self_root)
+
+    manifest = {"apps": {"maestro": {"package_name": "maestro", "git_dir": "maestro"}}}
+    sources, _ = freeze_sources(manifest, ws)
+    by_repo = {s.repo: s for s in sources}
+    assert "ai-orchestrators-workspace" in by_repo
+    assert by_repo["ai-orchestrators-workspace"].present
+
+    inputs = {i.repo: i for i in build_inputs(sources, ws)}
+    assert inputs["ai-orchestrators-workspace"].todo_text == "- [ ] own @owner:github:o @id:own\n"
+
+
+def test_umbrella_in_the_manifest_is_not_counted_twice(tmp_path: Path, monkeypatch) -> None:
+    """A future manifest entry wins; the self-scan must not duplicate the repo."""
+    ws = tmp_path / "ws"
+    ws.mkdir()
+    self_root = _git_repo(ws / "umbrella", "- [ ] own @owner:github:o @id:own\n")
+    monkeypatch.setattr(plan_fields_sensor, "UMBRELLA_ROOT", self_root)
+
+    manifest = {"tools": {"umbrella": {"package_name": "umbrella", "git_dir": "umbrella"}}}
+    sources, _ = freeze_sources(manifest, ws)
+    assert [s.git_dir for s in sources] == ["umbrella"]
