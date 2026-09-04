@@ -22,5 +22,11 @@ git commit -m "vendor: check-release-drift.py @ $(git -C ../devtools rev-parse -
 `devtools/check-release-drift.py`; дороже и требует секрета. Для manifest-only
 проверки вендоринг проще.
 
-⚠ Ограничение чекера: он валидирует только `[cores.*]`/`[apps.*]` — секцию
-`[tools.*]` манифеста CI не проверяет, её пины поддерживаются вручную.
+Чекер валидирует `[cores.*]`, `[apps.*]` и `[tools.*]`. Секция `[tools.*]`
+добавлена 2026-09-05 (devtools#139, приёмка запроса prograph-vault): до этого
+пины пяти инструментов не проверял никто, и гейт пропускал плавающий HEAD.
+Для `[tools.*]` отсутствующий `pyproject` — `info`, а не `warn`: kapelle на
+Elixir, spec-runner-vscode на TypeScript, robin-toolkit «без pyproject»,
+ecosystem-kb — хранилище Obsidian, и версии релиза у них нет. Понижение узкое
+(секция `tools` И `publish != pypi` И файла нет), поэтому `[apps.*]` — все
+настоящие Python-пакеты с `publish = "none"` — предупреждение сохраняют.
