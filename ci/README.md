@@ -1,7 +1,7 @@
 # ci/ — вендоренная копия чекера для самодостаточного CI
 
 `check-release-drift.py` живёт в `devtools/`; здесь лежит **пиненая копия**
-(@ devtools `bde8cbe`, 2026-07-15) — философия «vendored pinned copy» из CLAUDE.md
+(@ devtools `fec3443`, 2026-09-05) — философия «vendored pinned copy» из CLAUDE.md
 экосистемы. CI зонтика поэтому не клонирует приватный devtools на каждый PR.
 
 ⚠ Единственная дивергенция от devtools master: дефолт `--manifest` адаптирован под
