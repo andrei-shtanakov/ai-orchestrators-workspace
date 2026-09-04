@@ -258,8 +258,11 @@ rust           = false
 
 # ══════════════ TOOLS (тулинг + KB; нужны для восстановления воркспейса) ══════════════
 # repo_url подтверждены фактом (git remote get-url origin, 2026-07-15).
-# ⚠ check-release-drift.py читает только [cores]/[apps] — [tools] CI НЕ валидирует;
-#   пины здесь поддерживаются вручную (bootstrap.sh их честно исполняет).
+# check-release-drift.py читает [tools] с 2026-09-05 (devtools#139): пины здесь
+#   валидируются гейтом manifest-drift наравне с [cores]/[apps] — install=git-sha
+#   без sha роняет PR. Отсутствующий pyproject у tools — info, а не warn: kapelle
+#   на Elixir, spec-runner-vscode на TypeScript, robin-toolkit и ecosystem-kb без
+#   pyproject вовсе, версии релиза у них нет.
 
 [tools.devtools]
 package_name   = "devtools"
