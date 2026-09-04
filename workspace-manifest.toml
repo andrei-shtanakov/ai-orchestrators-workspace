@@ -258,8 +258,11 @@ rust           = false
 
 # ══════════════ TOOLS (тулинг + KB; нужны для восстановления воркспейса) ══════════════
 # repo_url подтверждены фактом (git remote get-url origin, 2026-07-15).
-# ⚠ check-release-drift.py читает только [cores]/[apps] — [tools] CI НЕ валидирует;
-#   пины здесь поддерживаются вручную (bootstrap.sh их честно исполняет).
+# check-release-drift.py читает [tools] с 2026-09-05 (devtools#139): пины здесь
+#   валидируются гейтом manifest-drift наравне с [cores]/[apps] — install=git-sha
+#   без sha роняет PR. Отсутствующий pyproject у tools — info, а не warn: kapelle
+#   на Elixir, spec-runner-vscode на TypeScript, robin-toolkit и ecosystem-kb без
+#   pyproject вовсе, версии релиза у них нет.
 
 [tools.devtools]
 package_name   = "devtools"
@@ -289,7 +292,7 @@ rust           = false
 package_name   = "robin-toolkit"
 repo_url       = "git@github.com:andrei-shtanakov/robin-toolkit.git"
 git_dir        = "robin-toolkit"
-pyproject_path = "robin-toolkit/pyproject.toml"    # pyproject нет — потому и в [tools]: release-drift эту секцию не читает; валидирует только manifest-resolve
+pyproject_path = "robin-toolkit/pyproject.toml"    # pyproject нет вовсе: release-drift даёт info, не warn (см. шапку секции)
 tag_pattern    = "v*"
 tag            = "-"
 sha            = "3e871628abe0"                # origin/master 2026-08-13
@@ -301,7 +304,7 @@ rust           = false
 package_name   = "spec-runner-vscode"
 repo_url       = "git@github.com:andrei-shtanakov/spec-runner-vscode.git"
 git_dir        = "spec-runner-vscode"
-pyproject_path = "spec-runner-vscode/pyproject.toml"   # TS-репо без pyproject — потому и в [tools]: release-drift эту секцию не читает; валидирует только manifest-resolve
+pyproject_path = "spec-runner-vscode/pyproject.toml"   # TS-репо без pyproject: release-drift даёт info, не warn (см. шапку секции)
 tag_pattern    = "v*"
 tag            = "-"
 sha            = "ec2f4b6c220d"                # origin/master 2026-08-13
@@ -313,7 +316,7 @@ rust           = false
 package_name   = "kapelle"
 repo_url       = "git@github.com:andrei-shtanakov/kapelle.git"
 git_dir        = "kapelle"
-pyproject_path = "kapelle/pyproject.toml"      # Elixir-репо без pyproject — release-drift эту секцию не читает; валидирует только manifest-resolve
+pyproject_path = "kapelle/pyproject.toml"      # Elixir-репо без pyproject: release-drift даёт info, не warn (см. шапку секции)
 tag_pattern    = "v*"
 tag            = "-"
 sha            = "dc10e4b78d0b"                # origin/master 2026-08-17, пост-онбординг (PR kapelle#26)
