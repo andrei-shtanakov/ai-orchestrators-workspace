@@ -32,6 +32,19 @@
 
 ## Ось эпиков (ADR-ECO-010)
 
+- [ ] Довести миграцию эпика kapelle: перетегировать два post-M3 пункта и закрыть `airun.kapelle-m3` @owner:github:andrei-shtanakov @id:kapelle-epic-migration @epic:eco.epics
+      `airun.kapelle-live-runtime` заведён (этот PR), но миграция двухшаговая и
+      порядок в ней несущий: пока `todo://kapelle/real-provider-adapters` и
+      `todo://kapelle/product-loop-liveview` несут `@epic:airun.kapelle-m3`,
+      закрывать m3 нельзя — открытая задача под `done`-эпиком не даёт
+      диагностики **ни в одном гейте**: PR-гейт реестра идёт с
+      `--registry-only` и флот не читает, а resolver плоскости плана принимает
+      любой живой эпик, `done` включительно. Шаги: (1) PR в kapelle — сменить
+      тег обоим пунктам, сохранив `@blocked_by` у LiveView, и поправить
+      `Epic:`-трейлер открытого kapelle#50; (2) PR сюда — `airun.kapelle-m3` в
+      `done` с `closed = 2026-09-06` (дата принятой приёмки). Исторические
+      закрытые PR, issues и TODO-пункты остаются под старым id.
+
 - [ ] Сенсор эпиков читает `snapshot/v2`: наблюдать `issues` и `pull_requests` вместо `not_observed` @owner:github:andrei-shtanakov @id:epics-sensor-consume-snapshot-v2 @epic:eco.epics
       Сейчас `epics-report.md` честно показывает покрытие только по оси `todo`
       (231 размечен, 0 пропущено), а две другие оси помечены «not observed by
