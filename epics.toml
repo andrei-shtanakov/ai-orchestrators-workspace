@@ -227,7 +227,10 @@ notes  = """\
 observability сообщает, что произошло, а cost control принимает синхронные решения до и \
 во время расхода — разная нормативная сила, разные последствия отказа. Входит: capture \
 usage, price snapshots, enforcement бюджетов; обычная телеметрия остаётся в \
-eco.observability.\
+eco.observability. Продуктовый usage-учёт внутри kapelle (инструментовка \
+token_usage её собственного product-loop) идёт в airun.kapelle-live-runtime — \
+здесь общефлотовый протокол, там доведение трёх состояний стоимости до \
+настоящих на прогонах одного репо.\
 """
 
 [epics."eco.ops"]
@@ -237,12 +240,44 @@ notes  = "Фон: починки из эксплуатации, гигиена �
 
 # ══════════════════════════ эпики: airun ══════════════════════════
 
+[epics."airun.kapelle-live-runtime"]
+title  = "Kapelle — live provider runtime"
+status = "active"
+goal   = "Product-loop работает через реальные provider-адаптеры с fail-closed учётом usage и имеет операторскую LiveView-поверхность"
+opened = "2026-08-17"
+notes  = """\
+Преемник airun.kapelle-m3 по объёму, но не по цели: M3 доказывал \
+воспроизведение референс-семантики на fixture-агентах, здесь — переход на \
+реальных провайдеров и операторская поверхность над ним. Состав: \
+todo://kapelle/real-provider-adapters (kapelle#50; несёт токенную половину \
+§9.3 — три состояния стоимости обязаны остаться различимыми) и \
+todo://kapelle/product-loop-liveview (@blocked_by первого; вынесен за M3 \
+решением владельца 2026-09-06 из-за порядка проектирования, а не объёма). \
+Основание `opened`: kapelle `cd89aa2` (2026-08-17) — коммит, заведший \
+управляемый пункт `real-provider-adapters` с формулировкой «отдельная веха \
+после M3»; это первое доказательство активности потока. НЕ дата именования: \
+ruling владельца 2026-09-06 конституировал общий эпик, но `opened` по \
+правилу шапки — дата доказуемой активности. Не PR kapelle#14 (14.08): тот \
+дизайн — ещё M3, он лишь оставляет seam под будущие адаптеры. Не issue \
+kapelle#50 (31.08): это позднейший GitHub-хэндл пункта, а не SSOT работы. \
+Исторические артефакты обоих потоков остаются под airun.kapelle-m3; сам \
+переход ведётся пунктом \
+todo://ai-orchestrators-workspace/kapelle-epic-migration — переходные \
+состояния живут в плане, а не в этой записи, которая переживёт их все. \
+Граница с \
+eco.runtime-cost-control: сюда — продуктовый usage-учёт внутри самой kapelle \
+(инструментовка token_usage, чтобы три состояния стоимости стали настоящими \
+на её прогонах); туда — общефлотовый протокол estimate→reserve→settle, \
+price snapshots и enforcement бюджетов. Узел несёт ровно один @epic \
+(EP-MULTIPLE), поэтому граница названа здесь, а не разрешается по случаю.\
+"""
+
 [epics."airun.kapelle-m3"]
 title  = "airun M3 — Kapelle как execution backend"
 status = "active"
 goal   = "Kapelle воспроизводит референс-семантику forconcept и проходит критерии живучести §9.3"
 opened = "2026-08-13"
-notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3."
+notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3. Приёмка арки — kapelle/docs/superpowers/acceptance/2026-09-06-m3-acceptance.md (принята 2026-09-06). Преемник по объёму — airun.kapelle-live-runtime."
 
 [epics."airun.product-governance"]
 title  = "airun — product governance"
