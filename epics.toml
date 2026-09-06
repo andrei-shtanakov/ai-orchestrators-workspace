@@ -273,7 +273,7 @@ title  = "airun M3 — Kapelle как execution backend"
 status = "active"
 goal   = "Kapelle воспроизводит референс-семантику forconcept и проходит критерии живучести §9.3"
 opened = "2026-08-13"
-notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3. Приёмка арки — kapelle/docs/superpowers/acceptance/2026-09-06-m3-acceptance.md; перевод в `done` и преемник ведутся пунктом todo://ai-orchestrators-workspace/kapelle-epic-migration."
+notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3. Приёмка арки — kapelle/docs/superpowers/acceptance/2026-09-06-m3-acceptance.md (принята 2026-09-06). Преемник по объёму — airun.kapelle-live-runtime."
 
 [epics."airun.product-governance"]
 title  = "airun — product governance"
