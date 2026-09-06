@@ -237,12 +237,29 @@ notes  = "Фон: починки из эксплуатации, гигиена �
 
 # ══════════════════════════ эпики: airun ══════════════════════════
 
+[epics."airun.kapelle-live-runtime"]
+title  = "Kapelle — live provider runtime"
+status = "active"
+goal   = "Product-loop работает через реальные provider-адаптеры с fail-closed учётом usage и имеет операторскую LiveView-поверхность"
+opened = "2026-09-06"
+notes  = """\
+Преемник закрытого airun.kapelle-m3 по объёму, но не по цели: M3 доказывал \
+воспроизведение референс-семантики на fixture-агентах, здесь — переход на \
+реальных провайдеров и операторская поверхность над ним. Входит: \
+todo://kapelle/real-provider-adapters (kapelle#50; несёт токенную половину \
+§9.3 — три состояния стоимости обязаны остаться различимыми) и \
+todo://kapelle/product-loop-liveview (@blocked_by первого; вынесен за M3 \
+решением владельца 2026-09-06 из-за порядка проектирования, а не объёма). \
+Исторические артефакты обоих потоков остаются под airun.kapelle-m3: он \
+закрывается отдельным PR после того, как оба пункта сменят тег.\
+"""
+
 [epics."airun.kapelle-m3"]
 title  = "airun M3 — Kapelle как execution backend"
 status = "active"
 goal   = "Kapelle воспроизводит референс-семантику forconcept и проходит критерии живучести §9.3"
 opened = "2026-08-13"
-notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3."
+notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3. Арка пройдена (приёмка 2026-09-06), закрывается отдельным PR — ПОСЛЕ перевода двух открытых post-M3 пунктов kapelle на airun.kapelle-live-runtime: открытая задача под `done`-эпиком не даёт диагностики ни в одном гейте."
 
 [epics."airun.product-governance"]
 title  = "airun — product governance"
