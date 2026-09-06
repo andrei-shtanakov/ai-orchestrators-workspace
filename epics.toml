@@ -274,10 +274,11 @@ price snapshots и enforcement бюджетов. Узел несёт ровно 
 
 [epics."airun.kapelle-m3"]
 title  = "airun M3 — Kapelle как execution backend"
-status = "active"
+status = "done"
 goal   = "Kapelle воспроизводит референс-семантику forconcept и проходит критерии живучести §9.3"
 opened = "2026-08-13"
-notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3. Приёмка арки — kapelle/docs/superpowers/acceptance/2026-09-06-m3-acceptance.md (принята 2026-09-06). Преемник по объёму — airun.kapelle-live-runtime."
+closed = "2026-09-06"
+notes  = "Основание: kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md (approved in discussion 2026-08-13/14); impresario/TODO.md §M3. Закрыт принятой приёмкой kapelle/docs/superpowers/acceptance/2026-09-06-m3-acceptance.md (PR kapelle#71): восемь критериев §1/§9.3 закрыты, вердикт product: pass, harness: pass предъявлен живым прогоном. Преемник по объёму — airun.kapelle-live-runtime; исторические артефакты остаются под этим id."
 
 [epics."airun.product-governance"]
 title  = "airun — product governance"
