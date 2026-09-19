@@ -15,9 +15,10 @@ import pytest
 
 from no_cowork_in_runtime import (
     PolicyError,
-    _under_data_artifact,
-    load_data_artifact_dirs,
+    _is_declared_data_file,
+    load_data_artifact_files,
     scan,
+    verify_declarations_exist,
 )
 
 NEEDLE_LINE = 'path = "_cowork_output/x.json"\n'
@@ -47,16 +48,16 @@ def test_resolve_in_code_still_fails_without_declarations(tmp_path: Path) -> Non
 
 
 def test_declaration_does_not_leak_to_undeclared_paths(tmp_path: Path) -> None:
-    """Объявлен `pilot` — `src/` обязан проверяться как прежде."""
+    """Объявлен один файл — `src/` обязан проверяться как прежде."""
     repo = _repo(tmp_path, {"pilot/b.yaml": NEEDLE_LINE, "src/app.py": NEEDLE_LINE})
-    hits, _, _ = scan(repo, ["pilot"])
+    hits, _, _ = scan(repo, ["pilot/b.yaml"])
     assert [str(h[0]) for h in hits] == ["src/app.py"]
 
 
-# --- сама ступень ------------------------------------------------------------
+# --- сама ступень: объявляются ТОЛЬКО файлы, поимённо -----------------------
 
 
-def test_declared_dir_is_treated_as_prose(tmp_path: Path) -> None:
+def test_declared_file_is_treated_as_prose(tmp_path: Path) -> None:
     """Живой случай impresario: текст стандартов, записанный в evidence."""
     brief = (
         "brief_id: BRF-1\n"
@@ -64,77 +65,95 @@ def test_declared_dir_is_treated_as_prose(tmp_path: Path) -> None:
     )
     repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": brief})
     assert scan(repo)[0], "без объявления это находка — иначе тест ничего не доказывает"
-    assert scan(repo, ["pilot"])[0] == []
+    assert scan(repo, ["pilot/briefs/brf-1.yaml"])[0] == []
 
 
-def test_declared_single_file_is_treated_as_prose(tmp_path: Path) -> None:
-    """Объявить можно и одиночный файл — в зонтике это `epics.toml`."""
-    repo = _repo(tmp_path, {"epics.toml": 'notes = "Основание: _cowork_output/adr.md"\n'})
-    assert scan(repo)[0]
-    assert scan(repo, ["epics.toml"])[0] == []
+@pytest.mark.parametrize(
+    "newcomer",
+    [
+        "pilot/briefs/runtime.py",     # заход 1 ревью: код рядом с объявленным
+        "pilot/briefs/action.yml",     # заход 2 ревью: исполняемый YAML
+        "pilot/briefs/brf-2.yaml",     # просто необъявленный сосед
+    ],
+)
+def test_file_appearing_next_to_a_declaration_is_not_covered(
+    tmp_path: Path, newcomer: str
+) -> None:
+    """Обе находки приёмочного ревью (major/high) закрываются одним свойством:
+    покрыт РОВНО объявленный файл. Объявленный КАТАЛОГ дырявился файлом,
+    которого в момент объявления не было, — сперва `runtime.py`, потом
+    `action.yml` с `run: cat _cowork_output/...`, потому что расширение не
+    доказывает прозу. Точное совпадение снимает вопрос целиком: гадать «проза
+    или код» больше не нужно."""
+    repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": NEEDLE_LINE, newcomer: NEEDLE_LINE})
+    hits = scan(repo, ["pilot/briefs/brf-1.yaml"])[0]
+    assert [str(h[0]) for h in hits] == [newcomer]
 
 
-@pytest.mark.parametrize("code_file", ["pilot/runtime.py", "pilot/deep/tool.sh"])
-def test_code_inside_declared_dir_is_still_scanned(tmp_path: Path, code_file: str) -> None:
-    """Находка приёмочного ревью (major): объявление КАТАЛОГА не смеет
-    превращаться в дыру. Репо, положив исполняемый файл внутрь уже
-    разрешённого каталога, расширило бы себе исключение на настоящий резолв —
-    ровно то, чего ступень обязана не допускать. Объявление снимает вопрос
-    «проза внутри данных», а не «инвариант по коду»."""
-    repo = _repo(tmp_path, {code_file: NEEDLE_LINE, "pilot/b.yaml": NEEDLE_LINE})
-    hits = scan(repo, ["pilot"])[0]
-    assert [str(h[0]) for h in hits] == [code_file], "код внутри data-каталога обязан ловиться"
-
-
-def test_declaration_exempts_only_serialization_formats(tmp_path: Path) -> None:
-    """Позитивная половина той же пары: данные внутри объявленного пути
-    исключены, код — нет, и оба факта проверяются одним прогоном."""
-    repo = _repo(
-        tmp_path,
-        {"pilot/b.yaml": NEEDLE_LINE, "pilot/c.json": NEEDLE_LINE,
-         "pilot/d.toml": NEEDLE_LINE, "pilot/app.py": NEEDLE_LINE},
-    )
-    assert [str(h[0]) for h in scan(repo, ["pilot"])[0]] == ["pilot/app.py"]
-
-
-def test_declaration_matches_by_segments_not_string_prefix(tmp_path: Path) -> None:
-    """`pilot` не смеет накрывать `pilotage/` — иначе объявление тихо
-    расширяется на соседа с общим началом имени."""
-    repo = _repo(tmp_path, {"pilotage/runtime.py": NEEDLE_LINE})
-    assert [str(h[0]) for h in scan(repo, ["pilot"])[0]] == ["pilotage/runtime.py"]
+def test_declaration_does_not_cover_the_parent_directory(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, {"pilot/other.yaml": NEEDLE_LINE})
+    assert [str(h[0]) for h in scan(repo, ["pilot/briefs/brf-1.yaml"])[0]] == ["pilot/other.yaml"]
 
 
 @pytest.mark.parametrize(
     "rel,decls,expected",
     [
-        ("pilot/briefs/b.yaml", ["pilot"], True),
-        ("pilot", ["pilot"], True),
-        ("pilotage/x.py", ["pilot"], False),
-        ("src/pilot/x.py", ["pilot"], False),  # объявление якорится в КОРНЕ репо
-        ("a/b/c.yaml", ["a/b"], True),
-        ("a/bb/c.yaml", ["a/b"], False),
+        ("pilot/briefs/b.yaml", ["pilot/briefs/b.yaml"], True),
+        ("pilot/briefs/b.yaml", ["pilot"], False),          # каталог не покрывает
+        ("pilot/briefs/b.yaml", ["pilot/briefs"], False),
+        ("pilot/briefs/bb.yaml", ["pilot/briefs/b.yaml"], False),  # не префикс строки
+        ("epics.toml", ["epics.toml"], True),
     ],
 )
-def test_under_data_artifact_matrix(rel: str, decls: list[str], expected: bool) -> None:
-    assert _under_data_artifact(Path(rel), decls) is expected
+def test_declared_match_is_exact(rel: str, decls: list[str], expected: bool) -> None:
+    assert _is_declared_data_file(Path(rel), decls) is expected
+
+
+# --- протухшее объявление — находка, а не тихий ноль -------------------------
+
+
+def test_missing_declared_file_is_policy_error(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": "a: 1\n"})
+    with pytest.raises(PolicyError):
+        verify_declarations_exist(repo, ["pilot/briefs/УДАЛЁН.yaml"])
+
+
+def test_declared_path_that_is_a_directory_is_policy_error(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": "a: 1\n"})
+    (repo / "pilot/dir.yaml").mkdir(parents=True)
+    with pytest.raises(PolicyError):
+        verify_declarations_exist(repo, ["pilot/dir.yaml"])
+
+
+def test_declared_symlink_is_policy_error(tmp_path: Path) -> None:
+    """Цель symlink'а может лежать вне объявленного набора."""
+    repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": "a: 1\n", "src/app.yaml": "a: 1\n"})
+    (repo / "pilot/link.yaml").symlink_to(repo / "src/app.yaml")
+    with pytest.raises(PolicyError):
+        verify_declarations_exist(repo, ["pilot/link.yaml"])
+
+
+def test_existing_declarations_pass_verification(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": "a: 1\n"})
+    verify_declarations_exist(repo, ["pilot/briefs/brf-1.yaml"])
 
 
 # --- политика: fail-closed на каждом пути ------------------------------------
 
 
 def test_policy_reads_declared_dirs(tmp_path: Path) -> None:
-    pol = _policy(tmp_path, '[data-artifacts]\nimpresario = ["pilot"]\n')
-    assert load_data_artifact_dirs(pol, "impresario") == ["pilot"]
+    pol = _policy(tmp_path, '[data-artifacts]\nimpresario = ["pilot/b.yaml"]\n')
+    assert load_data_artifact_files(pol, "impresario") == ["pilot/b.yaml"]
 
 
 def test_policy_without_entry_for_repo_declares_nothing(tmp_path: Path) -> None:
-    pol = _policy(tmp_path, '[data-artifacts]\nimpresario = ["pilot"]\n')
-    assert load_data_artifact_dirs(pol, "maestro") == []
+    pol = _policy(tmp_path, '[data-artifacts]\nimpresario = ["pilot/b.yaml"]\n')
+    assert load_data_artifact_files(pol, "maestro") == []
 
 
 def test_policy_without_table_declares_nothing(tmp_path: Path) -> None:
     pol = _policy(tmp_path, '[pin]\nref = "x"\n')
-    assert load_data_artifact_dirs(pol, "impresario") == []
+    assert load_data_artifact_files(pol, "impresario") == []
 
 
 @pytest.mark.parametrize(
@@ -149,6 +168,9 @@ def test_policy_without_table_declares_nothing(tmp_path: Path) -> None:
         '[data-artifacts]\nimpresario = [42]\n',        # не строка
         '[data-artifacts]\nimpresario = "pilot"\n',     # не список
         '[data-artifacts]\nimpresario = ["a//b"]\n',    # пустой сегмент
+        '[data-artifacts]\nimpresario = ["pilot/app.py"]\n',   # код объявить нельзя
+        '[data-artifacts]\nimpresario = ["pilot/run.sh"]\n',
+        '[data-artifacts]\nimpresario = ["pilot"]\n',          # каталог (нет расширения)
     ],
 )
 def test_bad_declaration_is_policy_error(tmp_path: Path, body: str) -> None:
@@ -156,17 +178,17 @@ def test_bad_declaration_is_policy_error(tmp_path: Path, body: str) -> None:
     оно выключило бы GOV-003 целиком и молча, ради чего эта ступень и
     отделена от входа `runtime-scan`."""
     with pytest.raises(PolicyError):
-        load_data_artifact_dirs(_policy(tmp_path, body), "impresario")
+        load_data_artifact_files(_policy(tmp_path, body), "impresario")
 
 
 def test_unreadable_policy_is_policy_error(tmp_path: Path) -> None:
     with pytest.raises(PolicyError):
-        load_data_artifact_dirs(tmp_path / "нет-такого.toml", "impresario")
+        load_data_artifact_files(tmp_path / "нет-такого.toml", "impresario")
 
 
 def test_malformed_toml_is_policy_error(tmp_path: Path) -> None:
     with pytest.raises(PolicyError):
-        load_data_artifact_dirs(_policy(tmp_path, "[data-artifacts\n"), "impresario")
+        load_data_artifact_files(_policy(tmp_path, "[data-artifacts\n"), "impresario")
 
 
 # --- живая политика флота ----------------------------------------------------
@@ -175,5 +197,7 @@ def test_malformed_toml_is_policy_error(tmp_path: Path) -> None:
 def test_real_policy_declares_impresario_pilot() -> None:
     """Объявление в реальном caller-policy.toml читается и не разъехалось."""
     pol = Path(__file__).resolve().parents[1] / "governance" / "caller-policy.toml"
-    assert load_data_artifact_dirs(pol, "impresario") == ["pilot"]
-    assert load_data_artifact_dirs(pol, "steward") == []
+    declared = load_data_artifact_files(pol, "impresario")
+    assert len(declared) == 8, "восемь брифов impresario"
+    assert all(d.startswith("pilot/briefs/brf-") and d.endswith(".yaml") for d in declared)
+    assert load_data_artifact_files(pol, "steward") == []
