@@ -74,6 +74,29 @@ def test_declared_single_file_is_treated_as_prose(tmp_path: Path) -> None:
     assert scan(repo, ["epics.toml"])[0] == []
 
 
+@pytest.mark.parametrize("code_file", ["pilot/runtime.py", "pilot/deep/tool.sh"])
+def test_code_inside_declared_dir_is_still_scanned(tmp_path: Path, code_file: str) -> None:
+    """Находка приёмочного ревью (major): объявление КАТАЛОГА не смеет
+    превращаться в дыру. Репо, положив исполняемый файл внутрь уже
+    разрешённого каталога, расширило бы себе исключение на настоящий резолв —
+    ровно то, чего ступень обязана не допускать. Объявление снимает вопрос
+    «проза внутри данных», а не «инвариант по коду»."""
+    repo = _repo(tmp_path, {code_file: NEEDLE_LINE, "pilot/b.yaml": NEEDLE_LINE})
+    hits = scan(repo, ["pilot"])[0]
+    assert [str(h[0]) for h in hits] == [code_file], "код внутри data-каталога обязан ловиться"
+
+
+def test_declaration_exempts_only_serialization_formats(tmp_path: Path) -> None:
+    """Позитивная половина той же пары: данные внутри объявленного пути
+    исключены, код — нет, и оба факта проверяются одним прогоном."""
+    repo = _repo(
+        tmp_path,
+        {"pilot/b.yaml": NEEDLE_LINE, "pilot/c.json": NEEDLE_LINE,
+         "pilot/d.toml": NEEDLE_LINE, "pilot/app.py": NEEDLE_LINE},
+    )
+    assert [str(h[0]) for h in scan(repo, ["pilot"])[0]] == ["pilot/app.py"]
+
+
 def test_declaration_matches_by_segments_not_string_prefix(tmp_path: Path) -> None:
     """`pilot` не смеет накрывать `pilotage/` — иначе объявление тихо
     расширяется на соседа с общим началом имени."""
