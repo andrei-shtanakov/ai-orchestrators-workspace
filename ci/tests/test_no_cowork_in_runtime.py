@@ -54,6 +54,23 @@ def test_declaration_does_not_leak_to_undeclared_paths(tmp_path: Path) -> None:
     assert [str(h[0]) for h in hits] == ["src/app.py"]
 
 
+def test_umbrella_checkout_is_not_scanned(tmp_path: Path) -> None:
+    """`.governance/` — чекаут зонтика, который гейт кладёт внутрь каллера;
+    это дерево СКАНЕРА, не runtime-код проверяемого репо.
+
+    Пока его сканировали, любое упоминание токена в зонтике красило гейт во
+    всех 22 репо разом на следующем бампе пина. Живой случай: `epics.toml`
+    зонтика с прозаической заметкой уронил impresario#53 на файле, к самому
+    impresario отношения не имеющем."""
+    repo = _repo(
+        tmp_path,
+        {".governance/epics.toml": 'notes = "Основание: _cowork_output/adr.md"\n',
+         ".governance/ci/governance/x.py": NEEDLE_LINE,
+         "src/app.py": NEEDLE_LINE},
+    )
+    assert [str(h[0]) for h in scan(repo)[0]] == ["src/app.py"]
+
+
 # --- сама ступень: объявляются ТОЛЬКО файлы, поимённо -----------------------
 
 
