@@ -133,6 +133,21 @@ def test_declared_symlink_is_policy_error(tmp_path: Path) -> None:
         verify_declarations_exist(repo, ["pilot/link.yaml"])
 
 
+def test_symlinked_parent_segment_is_policy_error(tmp_path: Path) -> None:
+    """Третий заход приёмочного ревью (major): проверять только КОНЕЧНЫЙ
+    компонент мало. `pilot/briefs -> ../tests/evidence` — сам файл не symlink,
+    `is_file()` проходит СКВОЗЬ родительский symlink и возвращает True, а
+    физически он лежит там, куда объявление не выдавалось (и куда `os.walk`
+    даже не спускается: без `followlinks` и с `tests` в SKIP_DIRS)."""
+    repo = _repo(tmp_path, {"tests/evidence/brf-1.yaml": "a: 1\n"})
+    (repo / "pilot").mkdir(parents=True, exist_ok=True)
+    (repo / "pilot/briefs").symlink_to(repo / "tests/evidence", target_is_directory=True)
+    assert (repo / "pilot/briefs/brf-1.yaml").is_file(), "предпосылка сценария ревью"
+    assert not (repo / "pilot/briefs/brf-1.yaml").is_symlink(), "конечный компонент чист"
+    with pytest.raises(PolicyError):
+        verify_declarations_exist(repo, ["pilot/briefs/brf-1.yaml"])
+
+
 def test_existing_declarations_pass_verification(tmp_path: Path) -> None:
     repo = _repo(tmp_path, {"pilot/briefs/brf-1.yaml": "a: 1\n"})
     verify_declarations_exist(repo, ["pilot/briefs/brf-1.yaml"])
