@@ -47,7 +47,16 @@ jobs:
 
       - name: GOV-003 — no _cowork_output in runtime
         if: ${{ inputs.runtime-scan }}
-        run: python .governance/ci/governance/no_cowork_in_runtime.py --repo .
+        # Объявления data-артефактов читаются из ПОЛИТИКИ ЗОНТИКА (её же чекаут
+        # `.governance/`, тот же пиненый ref), не из сканируемого дерева и не из
+        # input'а каллера: репо не может расширить себе исключение. Имя репо —
+        # через env, никогда не инлайном в шелл (injection-safe, как BASE_REF ниже).
+        env:
+          REPO_NAME: ${{ github.event.repository.name }}
+        run: |
+          python .governance/ci/governance/no_cowork_in_runtime.py --repo . \
+            --policy .governance/ci/governance/caller-policy.toml \
+            --repo-name "$REPO_NAME"
 
       - name: GOV-009 / I2 — authority-root guard
         if: ${{ inputs.authority-guard && github.event_name == 'pull_request' }}
