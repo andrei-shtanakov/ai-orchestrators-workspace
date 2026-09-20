@@ -68,9 +68,9 @@ kapelle/docs/superpowers/specs/2026-08-14-product-context-design.md — \
 [epics."eco.dark-factory"]
 title  = "AI Dark Factory"
 status = "active"
-goal   = "срез 0 исполняется насквозь, включая консоль продюсера"
+goal   = "путь от интервью до кода исполняется прогоном, включая консоль продюсера и срез 0"
 opened = "2026-07-11"
-notes  = "Основание: prograph-vault authored/notes/2026-07-11-ai-dark-factory-consolidated-roadmap.md + roadmaps/contracts-v1.yaml. Репо: maestro, deployer, dispatcher, steward, impresario."
+notes  = "Основание: prograph-vault authored/notes/2026-07-11-ai-dark-factory-consolidated-roadmap.md + roadmaps/contracts-v1.yaml; арка «интервью → реализация» отнесена сюда решением владельца 2026-09-20 (authored/notes/2026-09-20-pipeline-and-polygon-decisions.md, решение 3) — цель расширена с одного среза до всего пути. Репо: maestro, deployer, dispatcher, steward, impresario, devtools, discovery, spec-runner."
 
 [epics."eco.governance-plane"]
 title  = "Governance-плоскость"
