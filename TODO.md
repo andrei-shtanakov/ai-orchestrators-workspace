@@ -131,6 +131,39 @@
       22 репо. Одна правка политики стоила волны из 22 PR, а найденный в ней
       дефект — ещё 18 догоняющих.
 
+## Supply-chain GitHub Actions (ADR-ECO-009 §8, graduation в CI)
+
+- [ ] `pinact --check` + `zizmor --offline` шагами `governance-gate.yml`: два класса проверок R-2 переезжают из Hardening Sweep в CI @owner:github:andrei-shtanakov @id:actions-supply-chain-gate @epic:eco.governance-plane
+      Замер 2026-09-22 по `*/.github/workflows` 24 репо набора: `uses:` по
+      полному SHA — **59**, по тегу — **267** (`checkout@v4/v6/v7`,
+      `setup-uv@v5/v6/v8.1.0`, `setup-python@v5/v7`, `upload-artifact@v4`).
+      В самом зонтике по SHA пинован единственный `create-github-app-token`
+      в `merge-broker.yml`; остальные 20 `uses:` в восьми workflow — тегом,
+      включая `governance-gate.yml` и `caller-pins.yml`: энфорсер пинов
+      защищает 22 каллера, но не собственную основу. Это ступень класса, а не
+      экземпляра — как `[data-artifacts]` в GOV-003: чинить механизм (пин
+      *всех* actions), не расширять allowlist ещё одним именем.
+      `zizmor` 1.29.0 запинен в тулбоксе R-2 (`hardening/toolbox/versions.txt`)
+      и стоит на машине, в CI — ни одного репо; `pinact` в тулбоксе нет и не
+      установлен. `hardening/ledger.md` не имеет ни одной строки после
+      2026-08-27 — метрика graduation ADR-ECO-009 §8 равна нулю, а правило П-1
+      («тишина = успех только с записью») проверить нечем. DarkFactory
+      (ADR-ECO-011) и merge-broker (ADR-ECO-008a) расширяют привилегированный
+      путь через GitHub Actions — гейт ставится до, а не после.
+      Шаги: (1) оба шага в `governance-gate.yml` в режиме **warn-only** на
+      неделю; в том же PR — ре-пин собственных workflow зонтика на SHA и
+      `pinact` в `toolbox/versions.txt` с хешем, как остальные сканеры;
+      (2) блокирующий режим; строка graduation в `hardening/ledger.md`.
+      Волна `pinact run` по остальным репо набора — не часть пункта: просьба
+      devtools через inbox-issue (ADR-ECO-006), той же формой, что прошла волна
+      пина каллера `51513e8 → 2f80dd4`.
+      Приёмка: `pinact --check` зелёный на зонтике и на всех каллерах;
+      `zizmor` без находок уровня ≥ medium — известные исключения только в
+      baseline-файле с датой пересмотра (ADR-ECO-009 §7), не выключением
+      проверки. Rollback — warn-only по умолчанию, ре-пин обратим в git.
+      Источник: `ai-repos-research/PROPOSAL.md` v3.1 R15 (§5.8), паттерн C20
+      (`typesafe-daggerverse`: `zizmor/`, `README.md`) — без Dagger.
+
 ## Гигиена репо
 
 - [ ] Завести `CLAUDE.md` зонтика @owner:github:andrei-shtanakov @id:workspace-claude-md @epic:eco.ops
