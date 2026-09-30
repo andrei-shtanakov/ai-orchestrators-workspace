@@ -17,6 +17,7 @@
 !/CODEOWNERS
 !/workspace-manifest.toml
 !/epics.toml
+!/roadmap.toml
 !/bootstrap.sh
 !/scripts/
 !/pyproject.toml
