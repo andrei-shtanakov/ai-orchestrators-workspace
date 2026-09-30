@@ -4,8 +4,10 @@
 # владелец, когда польза советчика на одном проверена.
 #
 # Файл — authority-root (#48): `autonomy` задаёт полномочия conductor, поэтому
-# любую правку мержит только человек (ci/governance/authority_root_guard.py,
-# merge-broker, devtools contracts/authority-root/v1/paths.env).
+# любую правку мержит только человек. Держит это merge-pr.sh по перечню devtools
+# contracts/authority-root/v1/paths.env — им мержат и PR зонтика. Строки в
+# ci/governance/authority_root_guard.py и merge-broker — зеркала для репо, где
+# эти гейты включены; на PR самого зонтика они не запускаются.
 # Проверка ссылок — у потребителя: неизвестный или неактивный эпик в `focus.epic`
 # и отсутствующая веха дают у conductor RM-INVALID / RM-GOAL-MISSING
 # (fail-closed: очередь без рангов), гейта в зонтике нет.
