@@ -1,0 +1,13 @@
+# roadmap.toml — порядок работ. Владелец: Andrei. Порядок [[focus]] = приоритет.
+# Схема и семантика: devtools/docs/superpowers/specs/2026-09-29-conductor-design.md §2.
+# Минимальный старт (2026-09-30): один подтверждённый фокус; фокусы добавляет
+# владелец, когда польза советчика на одном проверена.
+schema_version = 1
+updated      = "2026-09-30"
+autonomy     = 0
+writer_host  = "vmi3423913"
+writer_since = "2026-09-30T00:00:00Z"
+
+[[focus]]
+epic = "eco.dark-factory"
+goal = "todo://devtools/bundle-oracle-slice1"
