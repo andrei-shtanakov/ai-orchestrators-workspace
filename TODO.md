@@ -1,8 +1,9 @@
 # TODO — ai-orchestrators-workspace (заведён 2026-09-01)
 
-> Роль в экосистеме: **зонтик набора**. Держит два общефлотовых SSOT —
-> `workspace-manifest.toml` (состав набора и пины) и `epics.toml` (реестр
-> программ, эпиков и политики покрытия, ADR-ECO-010); сенсоры оси эпиков и
+> Роль в экосистеме: **зонтик набора**. Держит три общефлотовых SSOT —
+> `workspace-manifest.toml` (состав набора и пины), `epics.toml` (реестр
+> программ, эпиков и политики покрытия, ADR-ECO-010) и `roadmap.toml` (порядок
+> фокусов conductor; authority-root, мержит человек); сенсоры оси эпиков и
 > плоскости плана (`ci/`); governance-каллеры, meta-enforcer SHA-пинов и
 > authority-root guard (`ci/governance/`); merge-broker и вендоренный
 > review-kit.
