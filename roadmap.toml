@@ -2,6 +2,19 @@
 # Схема и семантика: devtools/docs/superpowers/specs/2026-09-29-conductor-design.md §2.
 # Минимальный старт (2026-09-30): один подтверждённый фокус; фокусы добавляет
 # владелец, когда польза советчика на одном проверена.
+#
+# Файл — authority-root (#48): `autonomy` задаёт полномочия conductor, поэтому
+# любую правку мержит только человек. Держит это merge-pr.sh по перечню devtools
+# contracts/authority-root/v1/paths.env — им мержат и PR зонтика. Строки в
+# ci/governance/authority_root_guard.py и merge-broker — зеркала для репо, где
+# эти гейты включены; на PR самого зонтика они не запускаются.
+# Проверка ссылок — у потребителя: неизвестный или неактивный эпик в `focus.epic`
+# и отсутствующая веха дают у conductor RM-INVALID / RM-GOAL-MISSING
+# (fail-closed: очередь без рангов), гейта в зонтике нет.
+# `autonomy` ≠ `merge_policy` ADR-ECO-011 D2 (пункт ecosystem-config-merge-policy):
+# `merge_policy` решает, кто мержит PR репо (агент или человек), `autonomy` —
+# какие действия conductor совершает сам (0 — только советует). Ручки
+# ортогональны: conductor не мержит ни на каком уровне.
 schema_version = 1
 updated      = "2026-09-30"
 autonomy     = 0

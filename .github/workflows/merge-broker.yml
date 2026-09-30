@@ -217,7 +217,8 @@ jobs:
             -e '^\.github/codex/' \
             -e '^ci/governance/' \
             -e '(^|/)CODEOWNERS$' \
-            -e '^profiles/(approval-policy|authority)\.yaml$' || true)
+            -e '^profiles/(approval-policy|authority)\.yaml$' \
+            -e '^roadmap\.toml$' || true)
           [ -z "$authority" ] || refuse "PR трогает authority-root — мержит человек: $(tr '\n' ' ' <<<"$authority")"
 
           echo "head=$(jq -r .headRefOid <<<"$pr")" >> "$GITHUB_OUTPUT"

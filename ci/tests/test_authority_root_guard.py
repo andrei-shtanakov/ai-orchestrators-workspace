@@ -59,3 +59,10 @@ def test_codex_dir_is_matched_by_prefix_not_by_name() -> None:
     assert matches(".github/codex/whatever-lands-here.yaml", DEFAULT_GLOBS)
     # Но не любой каталог с таким именем в произвольном месте дерева.
     assert not matches("docs/codex/notes.md", DEFAULT_GLOBS)
+
+
+def test_roadmap_is_authority_root() -> None:
+    # ai-orchestrators-workspace#48: `autonomy` в roadmap.toml — полномочия
+    # conductor; агентский PR, поднимающий их, обязан идти человеку (I2).
+    assert matches("roadmap.toml", DEFAULT_GLOBS)
+    assert not matches("docs/roadmap.toml.md", DEFAULT_GLOBS)
