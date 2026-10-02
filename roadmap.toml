@@ -16,11 +16,11 @@
 # какие действия conductor совершает сам (0 — только советует). Ручки
 # ортогональны: conductor не мержит ни на каком уровне.
 schema_version = 1
-updated      = "2026-09-30"
+updated      = "2026-10-03"
 autonomy     = 0
 writer_host  = "vmi3423913"
 writer_since = "2026-09-30T00:00:00Z"
 
 [[focus]]
 epic = "eco.dark-factory"
-goal = "todo://devtools/bundle-oracle-slice1"
+goal = "todo://devtools/conductor-slice-1"
