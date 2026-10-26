@@ -26,6 +26,10 @@ git_dir        = "spec-runner"
 pyproject_path = "spec-runner/pyproject.toml"
 tag_pattern    = "v*"
 tag            = "v2.33.2"                       # bump 2026-08-16 (был v2.9.0)
+sha            = "c71decf72fe192e83558a7d4b6ad64574bc4aae2"  # коммит тега v5.0.0 (2026-10-26)
+# ↑ sha выбирают и установщики воркспейса (checkout 5.0.0), и профиль df `core`. tag/lock_version/
+#   pin_range ниже — пин PyPI для потребителей (2.x): расхождение временное, переход
+#   потребителей на 5.x — отдельная задача с проверкой их зависимостей и контрактов.
 install        = "pypi"
 lock_version   = "2.33.2"
 pin_range      = ">=2.9,<3"
@@ -106,10 +110,10 @@ repo_url       = "git@github.com:andrei-shtanakov/steward.git"
 git_dir        = "steward"
 pyproject_path = "steward/pyproject.toml"
 tag_pattern    = "v*"
-tag            = "v0.1.0"                         # аннотированный тег на master
-sha            = "0d5b3f6f5c0e"                  # = коммит тега v0.1.0 (провенанс)
-install        = "git-tag"
-lock_version   = "0.1.0"
+tag            = "-"  # было v0.1.0 (git-tag); тег не свидетельствует о приёмке кода 007d004 — её подтвердит установка набора
+sha            = "007d00490599fa79484df648451988bf8939f25f"  # 2026-10-26: пин профиля df `core` (40 hex)
+install        = "git-sha"
+lock_version   = "0.1.0+g007d00490599"
 publish        = "none"
 rust           = false
 
@@ -224,9 +228,9 @@ git_dir        = "discovery"
 pyproject_path = "discovery/pyproject.toml"
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "1e8b80da7a15"                # origin/master 2026-08-13
+sha            = "3ebed2d90580510be14c6d9d64d19ca8f8dca56d"  # 2026-10-26: пин профиля df `core` (40 hex)
 install        = "git-sha"
-lock_version   = "0.1.0+g1e8b80da7a15"
+lock_version   = "0.1.0+g3ebed2d90580"
 publish        = "none"
 rust           = false
 
@@ -237,9 +241,9 @@ git_dir        = "discovery-toolkit"
 pyproject_path = "discovery-toolkit/pyproject.toml"
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "b5788256a631"                # origin/master 2026-08-13
+sha            = "e5faa6776bbec08b5e6c05517a8d69ee10772185"  # 2026-10-26: пин профиля df `core` (40 hex)
 install        = "git-sha"
-lock_version   = "0.2.0+gb5788256a631"
+lock_version   = "0.2.0+ge5faa6776bbe"
 publish        = "none"
 rust           = false
 
@@ -250,9 +254,9 @@ git_dir        = "disputatio"
 pyproject_path = "disputatio/pyproject.toml"
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "647a1dc9e1c2"                # origin/master 2026-08-17, пост-онбординг (PR disputatio#17)
+sha            = "920b63f489ddd6af150a3396b847ae5bba65b22e"  # 2026-10-26: пин профиля df `core` (40 hex)
 install        = "git-sha"
-lock_version   = "0.1.0+g647a1dc9e1c2"
+lock_version   = "0.1.0+g920b63f489dd"
 publish        = "none"
 rust           = false
 
@@ -271,7 +275,7 @@ git_dir        = "devtools"
 pyproject_path = "devtools/pyproject.toml"    # если нет pyproject — чекер деградирует до info
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "59357804d898"                # bump 2026-08-16: origin/master (был bde8cbe2aa04 от 2026-07-15)
+sha            = "335188f6be79d4d96569a0a7558c1333a0405122"  # 2026-10-26: пин профиля df `core` (40 hex); master с пакетом df (devtools#632/#633/#634)
 install        = "git-sha"
 publish        = "none"
 rust           = false
@@ -323,3 +327,20 @@ sha            = "dc10e4b78d0b"                # origin/master 2026-08-17, по�
 install        = "git-sha"
 publish        = "none"
 rust           = false
+
+# ══════════════ ПРОФИЛИ УСТАНОВКИ DarkFactory (df, devtools) ══════════════
+# Читает установщик `darkfactory` (devtools/df/manifest.py, спека B §3.2): члены профиля —
+# ключи записей [cores]/[apps]/[tools] выше, пины берутся оттуда же (`sha`, 40 hex) и не
+# дублируются здесь. Инвентаризация нативных колёс `core` правилом (в) — devtools
+# df-stage1 40277653777 (26.10): 0 проблем на macOS arm64 и Ubuntu x86_64. Смена пина члена
+# профиля — повод повторить её (devtools TODO `df-installer-stage1-live`).
+# `python` — 3.12.13: единственная версия с измеренным списком удаляемых Tcl/Tk (§3.4).
+# Группы `devtools` — только `governance` (решение владельца 22.10; `conductor` — позже).
+# Профиль `impresario` (= core + impresario) не заведён: пин impresario не замерен.
+
+[df.profiles.core]
+python  = "3.12.13"
+members = ["devtools", "discovery", "discovery-toolkit", "disputatio", "steward", "spec-runner"]
+
+[df.profiles.core.groups]                      # группы uv по члену; нет записи — без групп
+devtools = ["governance"]
