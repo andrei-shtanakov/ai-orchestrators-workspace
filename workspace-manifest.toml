@@ -275,7 +275,10 @@ git_dir        = "devtools"
 pyproject_path = "devtools/pyproject.toml"    # если нет pyproject — чекер деградирует до info
 tag_pattern    = "v*"
 tag            = "-"
-sha            = "335188f6be79d4d96569a0a7558c1333a0405122"  # 2026-10-26: пин профиля df `core` (40 hex); master с пакетом df (devtools#632/#633/#634)
+sha            = "291cb30cb9807ffc90d0775e7ae9b2e534694474"  # 2026-11-04: пин профиля df `core` (40 hex); master после этапа 2b (devtools#690)
+# ↑ было 335188f (легаси): без governance/act_precheck.py издатель такого релиза мерж stop не
+#   исполняет. 291cb30 несёт полное замыкание предпроверки (df/admin_tree.py), steward для
+#   site/ — из его uv.lock (68f46a9), не из пина [apps.steward] (devtools TODO df-core-repin-precheck).
 install        = "git-sha"
 publish        = "none"
 rust           = false
@@ -333,7 +336,7 @@ rust           = false
 # ключи записей [cores]/[apps]/[tools] выше, пины берутся оттуда же (`sha`, 40 hex) и не
 # дублируются здесь. Инвентаризация нативных колёс `core` правилом (в) — devtools
 # df-stage1 40277653777 (26.10): 0 проблем на macOS arm64 и Ubuntu x86_64. Смена пина члена
-# профиля — повод повторить её (devtools TODO `df-installer-stage1-live`).
+# профиля — повод повторить её (devtools TODO `df-installer-pin-drift`).
 # `python` — 3.12.13: единственная версия с измеренным списком удаляемых Tcl/Tk (§3.4).
 # Группы `devtools` — только `governance` (решение владельца 22.10; `conductor` — позже).
 # Профиль `impresario` (= core + impresario) не заведён: пин impresario не замерен.
